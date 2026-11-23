@@ -127,7 +127,7 @@ export default function Predictor({ user, onSignOut }) {
     <View style={{ backgroundColor: C.wine, borderRadius: R.lg, padding: pad, minHeight: 360 }} accessibilityLiveRegion="polite">
       {!r ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-          <Logo variant="wine" width={200} />
+          <Logo width={200} />
           <P size={16} color={C.sage} style={{ textAlign: 'center' }}>Revisa los valores marcados en rojo para ver tu resultado.</P>
         </View>
       ) : (
@@ -347,7 +347,7 @@ export default function Predictor({ user, onSignOut }) {
               ))}
             </View>
           </View>
-          {wide && <Logo variant="wine" width={240} />}
+          {wide && <Logo width={240} />}
         </Container>
       </Faded>
 

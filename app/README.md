@@ -14,10 +14,10 @@ APK instalable: `npx eas-cli build -p android --profile preview` (requiere cuent
 ## Pantallas
 `App.js` navega: Inicio (`src/screens/Landing.js`) → Sign in / Sign up (`AuthForm.js`) → Predictor (`Predictor.js`, requiere sesión).
 Diseño con el BrandBook de Los Tres García: colores en `src/theme.js`, componentes (logo, botones, campos, barra) en `src/components.js`.
-El logo vectorial se extrae del PDF con `python scripts/extract-logo.py "BrandBook (1).pdf"` y se recolorea por variante (light, ink, wine, olive, sage).
+El logo vectorial se extrae del PDF con `python scripts/extract-logo.py "BrandBook (1).pdf"` y se usa en una sola versión (título blanco, vid y "Vineyard" arena, siempre sobre fondo oscuro): `LOGO_COLORS` en `src/components.js`.
 Tipografías: Oswald (marca) + Montserrat (texto), vía `@expo-google-fonts`.
 Fotos en `assets/img/` (Licencia Unsplash, uso libre): viñedos de Sven Wilhelm, Boudewijn Boer y Matt Benson; barricas de David Goldman; botellas de Klara Kulikova.
-Landing: demo sin registro (`src/screens/Demo.js`, sliders → calidad en vivo y recomendaciones bloqueadas), secciones que aparecen al hacer scroll
+Landing: sin acceso a la predicción hasta registrarse; secciones que aparecen al hacer scroll
 y contadores animados (`src/motion.js`, respetan "reducir movimiento"), y preguntas frecuentes.
 Dashboard: predicción en vivo, percentil frente al dataset, simulador de recomendaciones ("Aplicar al formulario") y "Mis vinos" (`src/history.js`).
 PDFs: el logo y el pie se repiten en cada página; incluyen la guía "Cómo mejorar tu vino" para el productor.

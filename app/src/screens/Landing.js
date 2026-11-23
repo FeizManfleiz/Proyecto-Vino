@@ -4,7 +4,6 @@ import { Button, Container, Faded, H, Icon, IMG, Logo, NavBar, P, TextLink } fro
 import model from '../model.json';
 import { CountUp, InView, Reveal } from '../motion';
 import { C, F, R, web } from '../theme';
-import Demo from './Demo';
 
 // Página de inicio inspirada en apple.com: secciones a todo lo ancho, titulares centrados y mosaicos 2×2.
 // Cada sección aparece al hacer scroll (máx. 1–2 animaciones por vista; se desactivan con "reducir movimiento").
@@ -81,7 +80,6 @@ export default function Landing({ go }) {
     <ScrollView ref={scroll} stickyHeaderIndices={[0]} style={{ backgroundColor: C.white }}
       onScroll={e => check(e.nativeEvent.contentOffset.y)} scrollEventThrottle={32}>
       <NavBar onLogo={() => scroll.current?.scrollTo({ y: 0, animated: true })}>
-        {wide && <TextLink label="Pruébalo" color={C.white} size={14} onPress={() => goTo(1)} />}
         {wide && <TextLink label="Cómo funciona" color={C.white} size={14} onPress={() => goTo(5)} />}
         {wide && <TextLink label="Preguntas" color={C.white} size={14} onPress={() => goTo(7)} />}
         <Button small kind="outline" tone="white" label="Sign in" onPress={() => go('signin')} />
@@ -92,7 +90,7 @@ export default function Landing({ go }) {
       <Section seen={seen} onY={onY} i={0}>
         <Faded source={IMG.vineyardGold} color={C.ink} opacity={0.8} style={{ paddingTop: wide ? 96 : 64, paddingBottom: wide ? 80 : 56, minHeight: wide ? height - NAV_H : undefined, justifyContent: 'center' }}>
           <Container style={{ alignItems: 'center' }}>
-            <Reveal><Logo variant="ink" width={Math.min(wide ? 560 : 340, width - 40)} /></Reveal>
+            <Reveal><Logo width={Math.min(wide ? 560 : 340, width - 40)} /></Reveal>
             <Reveal delay={150} style={{ alignItems: 'center' }}>
               <H size={wide ? 64 : 40} color={C.white} style={{ textAlign: 'center', marginTop: 40 }}>Conoce tu vino antes de descorcharlo.</H>
               <P size={wide ? 22 : 18} color={C.sand} style={{ textAlign: 'center', marginTop: 16, maxWidth: 640 }}>
@@ -100,10 +98,10 @@ export default function Landing({ go }) {
               </P>
               <View style={{ flexDirection: 'row', gap: 20, marginTop: 32, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <Button tone="sand" label="Empezar" onPress={() => go('signup')} />
-                <TextLink label="Pruébalo sin registrarte" color={C.sand} onPress={() => goTo(1)} />
+                <TextLink label="Ya tengo cuenta" color={C.sand} onPress={() => go('signin')} />
               </View>
             </Reveal>
-            <Pressable onPress={() => goTo(1)} accessibilityRole="button" accessibilityLabel="Ir a la demo"
+            <Pressable onPress={() => goTo(2)} accessibilityRole="button" accessibilityLabel="Ver más sobre la app"
               style={{ marginTop: wide ? 56 : 40, alignItems: 'center', minHeight: 44, cursor: web ? 'pointer' : undefined }}>
               <Text style={{ fontFamily: F.bodyMd, color: C.sage, fontSize: 13, letterSpacing: 1 }}>DESCUBRE MÁS</Text>
               <Icon name="down" color={C.sage} />
@@ -111,9 +109,6 @@ export default function Landing({ go }) {
           </Container>
         </Faded>
       </Section>
-
-      {/* 1 · Demo interactiva */}
-      <Section seen={seen} onY={onY} i={1}><Demo go={go} /></Section>
 
       {/* 2 · Calidad */}
       <Section seen={seen} onY={onY} i={2}>
@@ -124,7 +119,7 @@ export default function Landing({ go }) {
               <P color="#f3e7ea" style={{ marginTop: 16, maxWidth: 460, textAlign: wide ? 'left' : 'center' }}>
                 Una calificación del 0 al 10 calculada con 11 mediciones, y en qué lugar queda frente a {model.metrics.n.toLocaleString('es-MX')} vinos reales.
               </P>
-              <TextLink label="Probar ahora" color={C.sand} onPress={() => goTo(1)} />
+              <TextLink label="Crear mi cuenta" color={C.sand} onPress={() => go('signup')} />
             </Reveal>
             <Reveal delay={200} style={{ flex: wide ? 1 : undefined, alignItems: 'center' }}>
               <CountUp to={7.4} decimals={1} style={{ fontFamily: F.display, fontSize: wide ? 180 : 120, lineHeight: wide ? 190 : 130, color: C.sand }} />
@@ -252,14 +247,14 @@ export default function Landing({ go }) {
 
       {/* 8 · CTA final */}
       <Section seen={seen} onY={onY} i={8}>
-        <Faded source={IMG.vineyardSun} color={C.sage} opacity={0.84} style={{ paddingVertical: wide ? 96 : 64 }}>
+        <Faded source={IMG.vineyardSun} color={C.ink} opacity={0.8} style={{ paddingVertical: wide ? 96 : 64 }}>
           <Container style={{ alignItems: 'center' }}>
             <Reveal style={{ alignItems: 'center' }}>
-              <Logo variant="sage" width={Math.min(420, width - 40)} />
-              <H size={wide ? 44 : 32} color={C.ink} style={{ textAlign: 'center', marginTop: 32 }}>Tu próxima cosecha, mejor entendida.</H>
+              <Logo width={Math.min(420, width - 40)} />
+              <H size={wide ? 44 : 32} color={C.white} style={{ textAlign: 'center', marginTop: 32 }}>Tu próxima cosecha, mejor entendida.</H>
               <View style={{ flexDirection: 'row', gap: 20, marginTop: 28, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <Button tone="wine" label="Crear cuenta" onPress={() => go('signup')} />
-                <TextLink label="Probar la demo" color={C.wine} onPress={() => goTo(1)} />
+                <Button tone="sand" label="Crear cuenta" onPress={() => go('signup')} />
+                <TextLink label="Ya tengo cuenta" color={C.sand} onPress={() => go('signin')} />
               </View>
             </Reveal>
           </Container>
@@ -268,7 +263,7 @@ export default function Landing({ go }) {
 
       <View style={{ backgroundColor: C.ink, paddingVertical: 32 }}>
         <Container style={{ flexDirection: wide ? 'row' : 'column', alignItems: 'center', gap: 24 }}>
-          <Logo variant="wine" width={140} />
+          <Logo width={140} />
           <Text style={{ flex: wide ? 1 : undefined, fontFamily: F.body, fontSize: 13, color: C.sage, lineHeight: 20, textAlign: wide ? 'left' : 'center' }}>
             © {new Date().getFullYear()} Los Tres García Vineyard. Las predicciones son estimaciones estadísticas y no sustituyen una cata profesional.
           </Text>

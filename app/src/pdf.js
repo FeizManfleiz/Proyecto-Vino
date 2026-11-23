@@ -2,9 +2,9 @@ import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import LOGO from './brand/logo-svg';
+import { LOGO_COLORS } from './components';
 
-const LOGO_COLORS = { VINE: '#546548', TITLE: '#20151d', SCRIPT: '#5e192c' }; // variante clara del BrandBook
-// Como <img> data-URI: un <svg> en línea con <use> sólo se dibuja en la primera página impresa
+// Mismo logo que en la app (fondo oscuro en el encabezado). Como <img> data-URI: un <svg> en línea con <use> sólo se dibuja en la primera página impresa
 const logo = `<img alt="Los Tres García Vineyard" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(
   LOGO.replace(/\{\{(\w+)\}\}/g, (_, k) => LOGO_COLORS[k]))}">`;
 
@@ -14,9 +14,10 @@ const wrap = (title, body) => `<!doctype html><html><head><meta charset="utf-8">
 <style>@page{margin:0}
 body{font-family:Montserrat,Helvetica,Arial,sans-serif;color:#20151d;line-height:1.55;margin:0}
 header{position:fixed;top:0;left:0;right:0;height:92px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 40px;border-bottom:3px solid #5e192c;background:#fff}
+  padding:0 40px;border-bottom:3px solid #d3be91;background:#20151d;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 header img{height:72px;width:auto}
-header span{font-family:Oswald,Impact,sans-serif;letter-spacing:2px;color:#5e192c;font-size:12px}
+header span{font-family:Oswald,Impact,sans-serif;letter-spacing:2px;color:#d3be91;font-size:12px}
+footer{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 footer{position:fixed;bottom:0;left:0;right:0;height:36px;background:#5e192c;color:#d3be91;font-size:10px;
   display:flex;align-items:center;justify-content:center;letter-spacing:1px}
 table.page{width:100%;border:0}table.page td{border:0;padding:0}

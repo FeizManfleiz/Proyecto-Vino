@@ -30,7 +30,7 @@ export default function App() {
   if ((!fontsLoaded && !fontError) || screen === 'loading') {
     return (
       <View style={{ flex: 1, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center', gap: 24 }}>
-        <Logo variant="wine" width={260} />
+        <Logo width={260} />
         <ActivityIndicator color={C.sand} size="large" accessibilityLabel="Cargando" />
       </View>
     );

@@ -25,7 +25,7 @@ export default function AuthForm({ mode, go, onAuth }) {
   return (
     <View style={{ flex: 1, flexDirection: wide ? 'row' : 'column', backgroundColor: C.cream }}>
       <Faded source={IMG.vineyardGold} color={C.wine} opacity={0.84} style={{ flex: wide ? 1 : undefined, alignItems: 'center', justifyContent: 'center', padding: wide ? 48 : 28, gap: 24 }}>
-        <Logo variant="wine" width={Math.min(wide ? 440 : 260, width - 56)} />
+        <Logo width={Math.min(wide ? 440 : 260, width - 56)} />
         {wide && (
           <P color="#f3e7ea" style={{ textAlign: 'center', maxWidth: 420 }}>
             {isUp ? 'Crea tu cuenta y empieza a predecir la calidad de tus vinos.' : 'Bienvenido de nuevo. Tus predicciones te esperan.'}

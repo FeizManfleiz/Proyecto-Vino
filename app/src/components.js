@@ -1,23 +1,17 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { ImageBackground, Pressable, Text, TextInput, View } from 'react-native';
 import Svg, { Path, SvgXml } from 'react-native-svg';
 import LOGO from './brand/logo-svg';
 import { C, F, R, MAXW, web } from './theme';
 
-// Variantes del logo tal como vienen en el BrandBook (págs. 2–6)
-const LOGO_VARIANTS = {
-  light: { VINE: C.olive, TITLE: C.ink, SCRIPT: C.wine },
-  ink: { VINE: C.sage, TITLE: C.mauve, SCRIPT: C.white },
-  wine: { VINE: C.sand, TITLE: C.white, SCRIPT: C.sand },
-  olive: { VINE: C.sand, TITLE: C.white, SCRIPT: C.sand },
-  sage: { VINE: C.white, TITLE: C.wine, SCRIPT: C.white },
-};
+// Una sola versión del logo en toda la app y los PDFs: título blanco, vid y "Vineyard" arena. Va siempre sobre fondo oscuro.
+export const LOGO_COLORS = { VINE: C.sand, TITLE: C.white, SCRIPT: C.sand };
+const LOGO_XML = LOGO.replace(/\{\{(\w+)\}\}/g, (_, k) => LOGO_COLORS[k]);
 
-export const Logo = memo(function Logo({ variant = 'light', width = 320 }) {
-  const xml = useMemo(() => LOGO.replace(/\{\{(\w+)\}\}/g, (_, k) => LOGO_VARIANTS[variant][k]), [variant]);
+export const Logo = memo(function Logo({ width = 320 }) {
   return (
     <View accessible accessibilityRole="image" accessibilityLabel="Los Tres García Vineyard" style={{ width, aspectRatio: 710 / 365 }}>
-      <SvgXml xml={xml} width="100%" height="100%" />
+      <SvgXml xml={LOGO_XML} width="100%" height="100%" />
     </View>
   );
 });
@@ -167,7 +161,7 @@ export function NavBar({ children, onLogo }) {
     <View style={{ backgroundColor: 'rgba(32,21,29,0.96)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
       <View style={{ maxWidth: MAXW, width: '100%', alignSelf: 'center', paddingHorizontal: 20, minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <Pressable onPress={onLogo} accessibilityRole="link" accessibilityLabel="Los Tres García, inicio" style={{ cursor: web ? 'pointer' : undefined, minHeight: 44, justifyContent: 'center' }}>
-          <Logo variant="wine" width={120} />
+          <Logo width={120} />
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>{children}</View>
       </View>
