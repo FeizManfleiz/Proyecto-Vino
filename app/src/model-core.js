@@ -38,4 +38,43 @@ function flavor(model, x, isRed) {
   return { dulzor, acidez, cuerpo, notes, pairing };
 }
 
-module.exports = { predict };
+// Acciones de proceso por variable (viñedo → bodega). Densidad y azúcar residual se omiten:
+// dependen del estilo y del alcohol, y moverlas solas en el modelo lineal no es realista.
+const ACTIONS = {
+  'volatile acidity': { steps: ['Cosechar uva sana y hacer selección de racimos en mesa', 'Usar levaduras seleccionadas y controlar la temperatura de fermentación', 'Mantener depósitos y barricas llenos y limpios para evitar oxígeno y bacterias acéticas', 'Proteger con SO₂ libre adecuado desde la recepción de la uva'] },
+  alcohol: { steps: ['Cosechar con mayor madurez (°Brix más alto)', 'Reducir rendimiento por hectárea con aclareo de racimos', 'Manejar la canopia para mejorar la exposición solar', 'Asegurar una fermentación completa con nutrientes para la levadura'] },
+  sulphates: { steps: ['Ajustar la adición de metabisulfito potásico dentro del límite legal', 'Medir SO₂ y sulfatos antes del embotellado'] },
+  'fixed acidity': { steps: ['Ajustar la fecha de cosecha (antes = más acidez)', 'Corregir con ácido tartárico en mosto si falta, o desacidificar si sobra'] },
+  'citric acid': { steps: ['Ajustar con ácido cítrico permitido después de la fermentación', 'Evitar la fermentación maloláctica si se busca más frescura'] },
+  pH: { steps: ['Acidificar con ácido tartárico en mosto para bajar el pH', 'Cosechar antes para conservar acidez natural', 'Evitar el exceso de potasio en la fertilización del viñedo'] },
+  chlorides: { steps: ['Revisar la salinidad del agua de riego y del suelo', 'Evitar riego con agua salobre en las semanas previas a la cosecha'] },
+  'free sulfur dioxide': { steps: ['Medir SO₂ libre con regularidad y dosificar en función del pH', 'Repartir las adiciones en lugar de una sola dosis grande'] },
+  'total sulfur dioxide': { steps: ['Reducir las adiciones de SO₂ mejorando la higiene de la bodega', 'Usar gas inerte en trasiegos y embotellado para necesitar menos sulfitos'] },
+};
+
+// Recomendaciones para el productor: qué variable mover hacia el perfil de los vinos ≥7 y cuánto sube la calidad según el modelo.
+function improve(model, x, isRed) {
+  const target = model.targets[isRed ? 'red' : 'white'];
+  const w = model.qualityWeights;
+  return model.features
+    .map((f, j) => {
+      const a = ACTIONS[f];
+      if (!a) return null;
+      const gap = target[j] - x[j];
+      const gain = (w[j + 1] * gap) / model.std[j]; // Δcalidad del modelo lineal
+      if (Math.abs(gap) / model.std[j] < 0.25 || gain < 0.03) return null; // diferencia irrelevante o no mejora
+      return { feature: f, current: x[j], target: target[j], gain, direction: gap > 0 ? 'Subir' : 'Bajar', steps: a.steps };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.gain - a.gain);
+}
+
+// % de vinos del mismo tipo en el dataset con calidad real menor a la predicha
+function percentile(model, quality, isRed) {
+  const d = model.dist[isRed ? 'red' : 'white'];
+  const total = d.reduce((a, b) => a + b, 0);
+  const below = d.reduce((s, n, k) => s + (k < quality ? n : 0), 0);
+  return Math.round((100 * below) / total);
+}
+
+module.exports = { predict, improve, percentile };

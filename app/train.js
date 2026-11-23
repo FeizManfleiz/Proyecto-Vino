@@ -58,7 +58,17 @@ for (let epoch = 0; epoch < 500; epoch++) {
   tw.forEach((_, i) => (tw[i] -= (0.5 * g[i]) / train.length));
 }
 
-const model = { features: FEATURES, mean, std, qualityWeights: qw, typeWeights: tw };
+// Perfil de referencia: promedio de los vinos de calidad ≥ 7 por tipo (meta para las recomendaciones al productor)
+const avgOf = rs => FEATURES.map((_, j) => rs.reduce((s, r) => s + r.x[j], 0) / rs.length);
+const good = red => train.filter(r => r.q >= 7 && r.red === red);
+const targets = { red: avgOf(good(1)), white: avgOf(good(0)) };
+console.log(`referencia calidad≥7: ${good(1).length} tintos, ${good(0).length} blancos`);
+
+// Distribución de calidades reales por tipo (para "mejor que el X% de los tintos")
+const dist = { red: Array(11).fill(0), white: Array(11).fill(0) };
+for (const r of rows) dist[r.red ? 'red' : 'white'][Math.round(r.q)]++;
+
+const model = { features: FEATURES, mean, std, qualityWeights: qw, typeWeights: tw, targets, dist };
 const { predict } = require('./src/model-core');
 const mae = test.reduce((s, r) => s + Math.abs(predict(model, r.x, r.red).quality - r.q), 0) / test.length;
 const acc = test.filter(r => (predict(model, r.x).pRed > 0.5 ? 1 : 0) === r.red).length / test.length;

@@ -13,7 +13,14 @@ APK instalable: `npx eas-cli build -p android --profile preview` (requiere cuent
 
 ## Pantallas
 `App.js` navega: Inicio (`src/screens/Landing.js`) → Sign in / Sign up (`AuthForm.js`) → Predictor (`Predictor.js`, requiere sesión).
-Estilos mínimos en `src/ui.js`, pensados para reemplazarse por el front del equipo.
+Diseño con el BrandBook de Los Tres García: colores en `src/theme.js`, componentes (logo, botones, campos, barra) en `src/components.js`.
+El logo vectorial se extrae del PDF con `python scripts/extract-logo.py "BrandBook (1).pdf"` y se recolorea por variante (light, ink, wine, olive, sage).
+Tipografías: Oswald (marca) + Montserrat (texto), vía `@expo-google-fonts`.
+Fotos en `assets/img/` (Licencia Unsplash, uso libre): viñedos de Sven Wilhelm, Boudewijn Boer y Matt Benson; barricas de David Goldman; botellas de Klara Kulikova.
+Landing: demo sin registro (`src/screens/Demo.js`, sliders → calidad en vivo y recomendaciones bloqueadas), secciones que aparecen al hacer scroll
+y contadores animados (`src/motion.js`, respetan "reducir movimiento"), y preguntas frecuentes.
+Dashboard: predicción en vivo, percentil frente al dataset, simulador de recomendaciones ("Aplicar al formulario") y "Mis vinos" (`src/history.js`).
+PDFs: el logo y el pie se repiten en cada página; incluyen la guía "Cómo mejorar tu vino" para el productor.
 Cuentas: `src/auth.js` guarda los usuarios en el dispositivo (contraseña con hash SHA-256 + salt). **No es auth real**: cambiar por un backend antes de producción.
 
 ## Modelo
@@ -138,6 +145,15 @@ Notas que se agregan:
 | Acidez volátil $\ge 0.7$ | posibles notas avinagradas |
 | SO₂ total $\ge 200$ | sulfitos altos, aroma punzante |
 | Sulfatos $\ge 0.8$ | buena estructura y conservación |
+
+### 8. Recomendaciones para el productor
+Meta $t_j$ = promedio de la variable $j$ en los vinos de entrenamiento con $q \ge 7$ del mismo tipo (176 tintos, 854 blancos; guardado en `model.json → targets`).
+Ganancia estimada si sólo cambiara esa variable (modelo lineal):
+
+$$\Delta \hat q_j = w_j \cdot \frac{t_j - x_j}{\sigma_j}$$
+
+Se muestra si $|t_j - x_j|/\sigma_j \ge 0.25$ y $\Delta \hat q_j \ge 0.03$, ordenadas de mayor a menor. Densidad y azúcar residual se excluyen
+(dependen del estilo y del alcohol; moverlas solas no es realista). Cada variable trae sus acciones de proceso en `src/model-core.js → ACTIONS`.
 
 Maridaje:
 
