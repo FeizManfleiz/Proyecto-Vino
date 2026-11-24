@@ -65,26 +65,30 @@ $$\hat q = \mathbf{w}^\top \mathbf{d} = w_0 + \sum_{j=1}^{11} w_j z_j + w_{12}\,
 Los pesos se obtienen resolviendo las ecuaciones normales con regularización ridge ($\lambda = 10^{-3}$, sin penalizar el intercepto),
 por eliminación de Gauss con pivoteo parcial:
 
-$$(D^\top D + \lambda I')\,\mathbf{w} = D^\top \mathbf{q} \qquad I' = \operatorname{diag}(0,1,\dots,1)$$
+$$(D^\top W D + \lambda I')\,\mathbf{w} = D^\top W \mathbf{q} \qquad I' = \operatorname{diag}(0,1,\dots,1)$$
 
-| Término | Peso $w$ |
-|---|---|
-| Intercepto | 5.7413 |
-| Acidez fija | 0.1278 |
-| Acidez volátil | −0.2410 |
-| Ácido cítrico | −0.0076 |
-| Azúcar residual | 0.3099 |
-| Cloruros | −0.0174 |
-| SO₂ libre | 0.0810 |
-| SO₂ total | −0.0824 |
-| Densidad | −0.3277 |
-| pH | 0.0815 |
-| Sulfatos | 0.1119 |
-| Alcohol | 0.2557 |
-| Es tinto ($r$) | 0.3221 |
+$W$ es diagonal: peso 1 para cada vino del dataset y $w_{\text{ref}} = 50$ para la referencia de alta gama
+(Romanée-Conti estimado, calidad 10; ver `REFERENCES` en `train.js` y la sección 6). La referencia solo entra a esta regresión.
+
+| Término | Peso $w$ | Sin referencia |
+|---|---|---|
+| Intercepto | 5.7738 | 5.7413 |
+| Acidez fija | −0.1376 | 0.1278 |
+| Acidez volátil | −0.2828 | −0.2410 |
+| Ácido cítrico | −0.0000 | −0.0076 |
+| Azúcar residual | 0.0159 | 0.3099 |
+| Cloruros | −0.0386 | −0.0174 |
+| SO₂ libre | 0.0768 | 0.0810 |
+| SO₂ total | −0.0601 | −0.0824 |
+| Densidad | 0.1929 | −0.3277 |
+| pH | −0.0219 | 0.0815 |
+| Sulfatos | 0.0734 | 0.1119 |
+| Alcohol | 0.5507 | 0.2557 |
+| Es tinto ($r$) | 0.2988 | 0.3221 |
 
 Como las variables están estandarizadas, el peso indica cuánto sube la calidad por cada desviación estándar.
-Lo que más sube la calidad: alcohol y azúcar residual (a densidad fija). Lo que más la baja: densidad y acidez volátil.
+Lo que más sube la calidad: alcohol. Lo que más la baja: acidez volátil y acidez fija.
+Densidad, alcohol y azúcar están muy correlacionados, por eso la referencia cambia tanto esos pesos sin mover el error (MAE 0.554 → 0.555).
 
 ### 4. Tipo: regresión logística
 Vector $\mathbf{d}' = [1, z_1, \dots, z_{11}]$:
@@ -114,20 +118,34 @@ En la app, si el usuario elige el tipo, se usa ese $r$; en "Auto" se usa el tipo
 
 ### 5. Métricas (conjunto de prueba, $m = 1300$)
 
-$$\text{MAE} = \frac{1}{m}\sum_{i=1}^{m}|\hat q_i - q_i| = 0.554 \qquad \text{MAE}_{\text{base}} = \frac{1}{m}\sum_{i=1}^{m}|6 - q_i| = 0.631$$
+$$\text{MAE} = \frac{1}{m}\sum_{i=1}^{m}|\hat q_i - q_i| = 0.555 \qquad \text{MAE}_{\text{base}} = \frac{1}{m}\sum_{i=1}^{m}|6 - q_i| = 0.631$$
 
 $$\text{Accuracy} = \frac{\#\{\text{tipo predicho} = \text{tipo real}\}}{m} = 99.3\%$$
 
 `train.js` no guarda el modelo si $\text{MAE} \ge \text{MAE}_{\text{base}}$ o si accuracy $\le 95\%$.
 
 ### 6. Gama (a partir de $\hat q$)
+La regresión comprime las predicciones hacia la media: los 198 vinos reales de calidad ≥8 se predicen entre ~5.9 y 7.0,
+así que con cortes fijos en 7/6/5 solo 2 de ellos salían Premium. Los cortes $c_t$ se calibran por cuantiles en entrenamiento:
+el % de vinos con $\hat q \ge c_t$ es igual al % con calidad real $q \ge t$ (`train.js` → `model.json → cuts`).
+
+$$c_t = \text{cuantil}_{1-p_t}(\hat q) \qquad p_t = \frac{\#\{q_i \ge t\}}{n} \qquad t \in \{7, 6, 5\}$$
 
 | Condición | Gama |
 |---|---|
-| $\hat q \ge 7$ | Premium |
-| $6 \le \hat q < 7$ | Bueno |
-| $5 \le \hat q < 6$ | Estándar |
-| $\hat q < 5$ | Bajo |
+| $\hat q \ge c_7 = 6.31$ | Premium |
+| $c_6 = 5.63 \le \hat q < c_7$ | Bueno |
+| $c_5 = 5.00 \le \hat q < c_6$ | Estándar |
+| $\hat q < c_5$ | Bajo |
+
+Resultado en los 6497 vinos: vinos de calidad ≥8 en Premium 2 → 113; gama correcta 45.5% → 51.9% (53.1% sin la referencia).
+
+**Ejemplo Romanée-Conti (estimado).** DRC no publica análisis de laboratorio; el preset usa valores típicos de un Pinot Noir
+Grand Cru de Vosne-Romanée: alcohol 13.2%, pH 3.55, acidez total ~3.6 g/L H₂SO₄ (≈5.5 g/L tartárico), seco (1.5 g/L),
+SO₂ bajo (15/50 mg/L). Se usa como referencia de alta gama en el entrenamiento (calidad 10, peso 50).
+Predicción: 6.29 sin la referencia → 7.22 con ella (Premium). Peso 1 no mueve nada (6.32); peso 200 llega a 8.41 pero
+empeora el MAE de prueba a 0.594.
+El modelo solo ve química y se entrenó con Vinho Verde portugués: no puede medir terroir, añejamiento ni prestigio.
 
 ### 7. Perfil de sabor (reglas, no modelo entrenado)
 
