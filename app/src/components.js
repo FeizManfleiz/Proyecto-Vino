@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { ImageBackground, Pressable, Text, TextInput, View } from 'react-native';
+import { ImageBackground, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, SvgXml } from 'react-native-svg';
 import LOGO from './brand/logo-svg';
 import { C, F, R, MAXW, web } from './theme';
@@ -33,6 +34,10 @@ const ICONS = {
   x: 'M18 6L6 18M6 6l12 12',
   bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z',
 };
+
+// Respuesta al toque en Android (la web usa los estados hover de cada control y no cambia)
+export const RIPPLE = { color: 'rgba(94,25,44,0.10)' };
+export const RIPPLE_ROUND = { ...RIPPLE, borderless: true, radius: 22 };
 
 // Control segmentado (píldoras) con semántica de radio
 export function Segmented({ options, value, onChange, label, dark }) {
@@ -108,7 +113,7 @@ export function Button({ label, onPress, kind = 'solid', tone = 'wine', icon, di
 // Enlace estilo Apple: "Más información >"
 export function TextLink({ label, onPress, color = C.wine, size = 17, back }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="link" style={({ hovered }) => ({
+    <Pressable onPress={onPress} accessibilityRole="link" android_ripple={RIPPLE} style={({ hovered }) => ({
       flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44, cursor: web ? 'pointer' : undefined, opacity: hovered ? 0.75 : 1,
     })}>
       {back && <Icon name="back" size={size} color={color} />}
@@ -179,3 +184,37 @@ export const H = ({ size = 56, color = C.ink, style, children, ...p }) => (
 export const P = ({ size = 19, color = C.ink, style, children }) => (
   <Text style={[{ fontFamily: F.body, fontSize: size, lineHeight: size * 1.55, color }, style]}>{children}</Text>
 );
+
+// Tarjeta blanca y rótulo en versalitas del dashboard
+export const Card = ({ style, children, ...p }) => (
+  <View style={[{ backgroundColor: C.white, borderRadius: R.lg, padding: 24, borderWidth: 1, borderColor: C.line }, style]} {...p}>{children}</View>
+);
+export const Kicker = ({ color = C.muted, style, children }) => (
+  <Text style={[{ fontFamily: F.bodySb, fontSize: 12, letterSpacing: 1.2, color, marginBottom: 10 }, style]}>{children}</Text>
+);
+
+// Colores [fondo, texto] de cada gama de calidad
+export const TIER_STYLE = { Premium: [C.sand, C.ink], Bueno: [C.sage, C.ink], 'Estándar': [C.white, C.ink], Bajo: [C.ink, C.white] };
+
+// Android (edge-to-edge): el teclado ya no achica la ventana, así que se deja espacio para que no tape los campos.
+// En iOS lo hace la ScrollView (automaticallyAdjustKeyboardInsets) y en web no envuelve nada.
+export function KeyboardAvoid({ children }) {
+  if (Platform.OS !== 'android') return children;
+  return <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>{children}</KeyboardAvoidingView>;
+}
+
+// Encabezado de las pestañas del celular: foto de marca que pasa por debajo de la barra de estado.
+// El contenido de abajo sube 20 px sobre él (marginTop: -20), igual que en el dashboard web.
+export function TabHeader({ source, kicker, title, children }) {
+  const { top } = useSafeAreaInsets();
+  return (
+    <Faded source={source} color={C.ink} opacity={0.8} style={{ paddingTop: top + 12, paddingBottom: 44 }}>
+      <Container>
+        <Logo width={104} />
+        {kicker ? <Text style={{ fontFamily: F.bodyMd, color: C.sand, fontSize: 15, marginTop: 18 }}>{kicker}</Text> : null}
+        <H size={38} color={C.white} style={{ marginTop: kicker ? 4 : 18 }}>{title}</H>
+        {children}
+      </Container>
+    </Faded>
+  );
+}

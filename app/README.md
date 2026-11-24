@@ -12,9 +12,21 @@ npm test           # autoverificación del modelo
 APK instalable: `npx eas-cli build -p android --profile preview` (requiere cuenta gratis de Expo).
 
 ## Pantallas
-`App.js` navega: Inicio (`src/screens/Landing.js`) → Sign in / Sign up (`AuthForm.js`) → Predictor (`Predictor.js`, requiere sesión).
+Navegación con **Expo Router**: las rutas están en `src/app/` y pintan las pantallas de `src/screens/`.
+
+| Ruta | Web | Celular |
+|---|---|---|
+| `/` | Landing (`Landing.js`) sin sesión; dashboard (`Predictor.js`) con sesión | Redirige a Iniciar sesión o a Analizar |
+| `/iniciar-sesion`, `/crear-cuenta` | `AuthForm.js` | `AuthForm.js` (la app abre aquí si no hay sesión) |
+| `/analizar`, `/mis-vinos`, `/guias`, `/cuenta` | — (todo está en el dashboard) | Pestañas nativas (`src/app/(app)/_layout.js`) |
+
+- Las rutas se protegen con `Stack.Protected` en `src/app/_layout.js` según la sesión (`src/session.js`). Al entrar o salir, Atrás no regresa al login.
+- El dashboard web y las pestañas comparten la lógica (`src/analysis.js`), las tarjetas (`src/analysis-ui.js`) y "Mis vinos" (`src/wines.js`).
+- En Android, Atrás recorre las pestañas visitadas y luego sale. Las áreas seguras las ponen `TabHeader` (arriba) y la barra de pestañas (abajo).
+
 Diseño con el BrandBook de Los Tres García: colores en `src/theme.js`, componentes (logo, botones, campos, barra) en `src/components.js`.
 El logo vectorial se extrae del PDF con `python scripts/extract-logo.py "BrandBook (1).pdf"` y se usa en una sola versión (título blanco, vid y "Vineyard" arena, siempre sobre fondo oscuro): `LOGO_COLORS` en `src/components.js`.
+Ícono, ícono adaptativo, favicon y splash salen del mismo logo con `python scripts/make-icons.py` (vid arena sobre tinta `#20151d`).
 Tipografías: Oswald (marca) + Montserrat (texto), vía `@expo-google-fonts`.
 Fotos en `assets/img/` (Licencia Unsplash, uso libre): viñedos de Sven Wilhelm, Boudewijn Boer y Matt Benson; barricas de David Goldman; botellas de Klara Kulikova.
 Landing: sin acceso a la predicción hasta registrarse; secciones que aparecen al hacer scroll

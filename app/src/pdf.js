@@ -1,8 +1,10 @@
+import { useCallback, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import LOGO from './brand/logo-svg';
 import { LOGO_COLORS } from './components';
+import { notify } from './dialogs';
 
 // Mismo logo que en la app (fondo oscuro en el encabezado). Como <img> data-URI: un <svg> en línea con <use> sólo se dibuja en la primera página impresa
 const logo = `<img alt="Los Tres García Vineyard" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(
@@ -49,6 +51,16 @@ export async function savePdf(title, body) {
   }
   const { uri } = await Print.printToFileAsync({ html });
   if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: title });
+}
+
+// [título que se está generando, descargar(título, cuerpo)]; los errores se avisan con un diálogo
+export function usePdf() {
+  const [busy, setBusy] = useState('');
+  const download = useCallback(async (title, body) => {
+    setBusy(title);
+    try { await savePdf(title, body); } catch (e) { notify(e.message); } finally { setBusy(''); }
+  }, []);
+  return [busy, download];
 }
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
