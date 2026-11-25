@@ -26,4 +26,19 @@ const rc = predict(model, [5.5, 0.5, 0.2, 1.5, 0.06, 15, 50, 0.9945, 3.55, 0.65,
 assert.strictEqual(rc.isRed, 1);
 assert.ok(rc.quality >= 7, `entrenado como referencia de alta gama, debe predecir ≥7: ${rc.quality}`);
 assert.strictEqual(rc.tier.name, 'Premium', `Romanée-Conti estimado debe ser Premium, predijo ${rc.quality}`);
-console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2), 'RC', rc.quality.toFixed(2), rc.tier.name);
+
+// Rangos del celular: mínimo y máximo de wine.csv, y ningún ejemplo debe salir marcado
+const { PRESETS, RANGES, rangeIssue, fieldIssue } = require('./src/wine-data.js');
+const [head, ...csv] = require('fs').readFileSync(`${__dirname}/wine.csv`, 'utf8').trim().split(/\r?\n/);
+const cols = head.split(',');
+const rows = csv.map(l => l.split(',')).map(v => model.features.map(f => +v[cols.indexOf(f)])).filter(x => x.every(Number.isFinite));
+model.features.forEach((f, j) => {
+  const col = rows.map(x => x[j]);
+  assert.deepStrictEqual(RANGES[f], [Math.min(...col), Math.max(...col)], `RANGES['${f}'] debe ser el mín–máx de wine.csv`);
+});
+Object.entries(PRESETS).forEach(([name, xs]) => xs.forEach((v, i) => assert.strictEqual(rangeIssue(model.features[i], v), null, `${name}: ${model.features[i]} = ${v} sale fuera de rango`)));
+assert.ok(rangeIssue('pH', 35) && rangeIssue('alcohol', 0), 'pH 35 y alcohol 0 deben marcarse');
+assert.strictEqual(fieldIssue('pH', '3,51'), null, 'la coma decimal es válida');
+assert.ok(fieldIssue('pH', ' ').bad && fieldIssue('pH', 'abc').bad && fieldIssue('pH', '-1').bad, 'vacío, texto y negativo impiden calcular');
+assert.strictEqual(fieldIssue('pH', '35').bad, false, 'fuera de rango sólo avisa');
+console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2), 'RC', rc.quality.toFixed(2), rc.tier.name, '· rangos', rows.length, 'vinos');

@@ -39,8 +39,8 @@ const ICONS = {
 export const RIPPLE = { color: 'rgba(94,25,44,0.10)' };
 export const RIPPLE_ROUND = { ...RIPPLE, borderless: true, radius: 22 };
 
-// Control segmentado (píldoras) con semántica de radio
-export function Segmented({ options, value, onChange, label, dark }) {
+// Control segmentado (píldoras) con semántica de radio. El celular pasa minHeight={48}.
+export function Segmented({ options, value, onChange, label, dark, minHeight = 40 }) {
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: 'row', backgroundColor: dark ? 'rgba(255,255,255,0.08)' : C.cream, borderRadius: R.pill, padding: 4, alignSelf: 'flex-start', flexWrap: 'wrap' }}>
       {options.map(([text, v]) => {
@@ -48,7 +48,7 @@ export function Segmented({ options, value, onChange, label, dark }) {
         return (
           <Pressable key={text} onPress={() => onChange(v)} accessibilityRole="radio" accessibilityState={{ checked: on }}
             style={({ hovered }) => ({
-              paddingHorizontal: 18, minHeight: 40, justifyContent: 'center', borderRadius: R.pill, cursor: web ? 'pointer' : undefined,
+              paddingHorizontal: 18, minHeight, justifyContent: 'center', borderRadius: R.pill, cursor: web ? 'pointer' : undefined,
               backgroundColor: on ? (dark ? C.sand : C.wine) : hovered ? (dark ? 'rgba(255,255,255,0.12)' : C.line) : 'transparent',
             })}>
             <Text style={{ fontFamily: F.bodySb, fontSize: 14, color: on ? (dark ? C.ink : C.white) : dark ? C.white : C.ink }}>{text}</Text>
@@ -179,8 +179,8 @@ export function NavBar({ children, onLogo }) {
   );
 }
 
-export const Container = ({ style, children }) => (
-  <View style={[{ maxWidth: MAXW, width: '100%', alignSelf: 'center', paddingHorizontal: 20 }, style]}>{children}</View>
+export const Container = ({ style, children, ...p }) => (
+  <View style={[{ maxWidth: MAXW, width: '100%', alignSelf: 'center', paddingHorizontal: 20 }, style]} {...p}>{children}</View>
 );
 
 export const H = ({ size = 56, color = C.ink, style, children, ...p }) => (

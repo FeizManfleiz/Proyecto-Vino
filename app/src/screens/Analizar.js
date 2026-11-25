@@ -1,7 +1,8 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { useAnalysis, useSaveWine } from '../analysis';
-import { AnalysisForm, ModelNote, RecsCard, ResultCard, StatChips, Tip } from '../analysis-ui';
+import { BAR_SPACE, LiveScoreBar, MobileAnalysisForm, useAnalysisFlow } from '../analysis-mobile';
+import { ModelNote, RecsCard, ResultCard, StatChips, Tip } from '../analysis-ui';
 import { Container, IMG, KeyboardAvoid, P, TabHeader } from '../components';
 import { markTipSeen, tipSeen } from '../history';
 import { TabScroll } from '../mobile-ui';
@@ -10,7 +11,8 @@ import { useSession } from '../session';
 import { C } from '../theme';
 import { useWines } from '../wines';
 
-// Pestaña Analizar (celular): el formulario, el resultado y las recomendaciones del dashboard web.
+// Pestaña Analizar (celular): el formulario por secciones, el resultado y las recomendaciones del dashboard web,
+// con la calificación en vivo en una barra encima de las pestañas.
 // `wineId` llega desde Mis vinos para cargar un vino guardado.
 export default function Analizar({ wineId, onWineOpened }) {
   const { user } = useSession();
@@ -20,6 +22,7 @@ export default function Analizar({ wineId, onWineOpened }) {
   const [pdfBusy, pdf] = usePdf();
   const [showTip, setShowTip] = useState(false);
   const scroll = useRef(null);
+  const flow = useAnalysisFlow({ a, scroll });
   const { width } = useWindowDimensions();
   const wide = width >= 900; // tableta
   const pad = wide ? 32 : 20;
@@ -42,20 +45,26 @@ export default function Analizar({ wineId, onWineOpened }) {
 
   return (
     <KeyboardAvoid>
-    <TabScroll scrollRef={scroll} automaticallyAdjustKeyboardInsets header={
-      <TabHeader source={IMG.barrels} kicker={`Hola, ${user.name.split(' ')[0]}.`} title="Predicción.">
-        <P size={16} color={C.sage} style={{ marginTop: 8 }}>Ajusta el análisis de laboratorio y mira la calidad cambiar en tiempo real.</P>
-        <StatChips history={history} best={best} />
-      </TabHeader>
-    }>
-      <Container style={{ marginTop: -20, gap: 24 }}>
-        {showTip ? <Tip onClose={closeTip} /> : null}
-        <AnalysisForm a={a} s={s} wide={wide} pad={pad} />
-        <ResultCard a={a} pad={pad} pdfBusy={pdfBusy} onPdf={pdf} />
-        <RecsCard a={a} wide={wide} pad={pad} pdfBusy={pdfBusy} onPdf={pdf} />
-        <ModelNote />
-      </Container>
-    </TabScroll>
+    <View style={{ flex: 1 }}>
+      <TabScroll scrollRef={scroll} automaticallyAdjustKeyboardInsets bottomExtra={BAR_SPACE}
+        onScroll={flow.onScroll} onLayout={flow.onViewLayout} header={
+        <TabHeader source={IMG.barrels} kicker={`Hola, ${user.name.split(' ')[0]}.`} title="Predicción.">
+          <P size={16} color={C.sage} style={{ marginTop: 8 }}>Ajusta el análisis de laboratorio y mira la calidad cambiar en tiempo real.</P>
+          <StatChips history={history} best={best} />
+        </TabHeader>
+      }>
+        <Container onLayout={flow.onBodyLayout} style={{ marginTop: -20, gap: 24 }}>
+          {showTip ? <Tip onClose={closeTip} /> : null}
+          <MobileAnalysisForm a={a} s={s} pad={pad} flow={flow} />
+          <View onLayout={flow.onResultLayout}>
+            <ResultCard a={a} pad={pad} pdfBusy={pdfBusy} onPdf={pdf} />
+          </View>
+          <RecsCard a={a} wide={wide} pad={pad} pdfBusy={pdfBusy} onPdf={pdf} />
+          <ModelNote />
+        </Container>
+      </TabScroll>
+      <LiveScoreBar a={a} flow={flow} />
+    </View>
     </KeyboardAvoid>
   );
 }

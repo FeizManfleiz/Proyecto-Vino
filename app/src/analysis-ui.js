@@ -9,7 +9,7 @@ import { C, F, R, web } from './theme';
 import { wineLabel } from './wines';
 import { LABELS, PRESETS, shortLabel, unit } from './wine-data';
 
-const TYPES = [['Auto', undefined], ['Tinto', 1], ['Blanco', 0]];
+export const TYPES = [['Auto', undefined], ['Tinto', 1], ['Blanco', 0]];
 // Niveles en orden de intensidad, para los medidores
 const SCALES = {
   Dulzor: ['Seco', 'Semiseco', 'Semidulce', 'Dulce'],
@@ -92,28 +92,35 @@ export function AnalysisForm({ a, s, wide, pad }) {
         </Text>
       )}
 
-      {/* Guardar en "Mis vinos" */}
-      <View style={{ borderTopWidth: 1, borderTopColor: C.line, marginTop: 8, paddingTop: 20 }}>
-        <Kicker>GUARDAR EN MIS VINOS</Kicker>
-        <View style={{ flexDirection: wide ? 'row' : 'column', gap: wide ? 12 : 0, alignItems: wide ? 'flex-end' : 'stretch' }}>
-          <Field label="Nombre del vino" value={s.wineName} onChangeText={s.onNameChange}
-            placeholder="Ej. Malbec Reserva" maxLength={60} onSubmitEditing={s.onSave}
-            style={{ flex: wide ? 1 : undefined, marginBottom: wide ? 0 : 12 }} />
-          <Field label="Año de cosecha" value={s.vintage} onChangeText={s.onVintageChange}
-            placeholder={String(new Date().getFullYear() - 1)} keyboardType="number-pad" maxLength={4} onSubmitEditing={s.onSave}
-            error={s.saveMsg && !s.saveMsg.ok && s.saveMsg.text.startsWith('El año')}
-            style={{ width: wide ? 150 : undefined, marginBottom: wide ? 0 : 12 }} />
-          <Button label="Guardar" icon="bookmark" onPress={s.onSave} />
-        </View>
-        {s.saveMsg && (
-          <View accessibilityRole="alert" accessibilityLiveRegion="polite"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 12, borderRadius: R.sm, backgroundColor: s.saveMsg.ok ? '#eef0e6' : '#fbeaec' }}>
-            <Icon name={s.saveMsg.ok ? 'check' : 'x'} size={18} color={s.saveMsg.ok ? C.olive : C.wine} />
-            <Text style={{ flex: 1, fontFamily: F.bodyMd, fontSize: 14, color: s.saveMsg.ok ? C.olive : C.wine }}>{s.saveMsg.text}</Text>
-          </View>
-        )}
-      </View>
+      <SaveWineSection s={s} wide={wide} />
     </Card>
+  );
+}
+
+// "Guardar en Mis vinos": nombre, año de cosecha y botón. Lo usan el formulario web y el del celular;
+// `nameProps`/`yearProps` dejan al celular encadenar el teclado (la web no los pasa y queda igual).
+export function SaveWineSection({ s, wide, nameProps, yearProps }) {
+  return (
+    <View style={{ borderTopWidth: 1, borderTopColor: C.line, marginTop: 8, paddingTop: 20 }}>
+      <Kicker>GUARDAR EN MIS VINOS</Kicker>
+      <View style={{ flexDirection: wide ? 'row' : 'column', gap: wide ? 12 : 0, alignItems: wide ? 'flex-end' : 'stretch' }}>
+        <Field label="Nombre del vino" value={s.wineName} onChangeText={s.onNameChange}
+          placeholder="Ej. Malbec Reserva" maxLength={60} onSubmitEditing={s.onSave}
+          style={{ flex: wide ? 1 : undefined, marginBottom: wide ? 0 : 12 }} {...nameProps} />
+        <Field label="Año de cosecha" value={s.vintage} onChangeText={s.onVintageChange}
+          placeholder={String(new Date().getFullYear() - 1)} keyboardType="number-pad" maxLength={4} onSubmitEditing={s.onSave}
+          error={s.saveMsg && !s.saveMsg.ok && s.saveMsg.text.startsWith('El año')}
+          style={{ width: wide ? 150 : undefined, marginBottom: wide ? 0 : 12 }} {...yearProps} />
+        <Button label="Guardar" icon="bookmark" onPress={s.onSave} />
+      </View>
+      {s.saveMsg && (
+        <View accessibilityRole="alert" accessibilityLiveRegion="polite"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 12, borderRadius: R.sm, backgroundColor: s.saveMsg.ok ? '#eef0e6' : '#fbeaec' }}>
+          <Icon name={s.saveMsg.ok ? 'check' : 'x'} size={18} color={s.saveMsg.ok ? C.olive : C.wine} />
+          <Text style={{ flex: 1, fontFamily: F.bodyMd, fontSize: 14, color: s.saveMsg.ok ? C.olive : C.wine }}>{s.saveMsg.text}</Text>
+        </View>
+      )}
+    </View>
   );
 }
 
