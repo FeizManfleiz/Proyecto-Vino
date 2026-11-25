@@ -142,13 +142,15 @@ export function Field({ label, error, style, ...props }) {
 }
 
 // Foto de fondo "deslavada": imagen + capa del color de marca encima.
-// Un View con la imagen en posición absoluta (ImageBackground está obsoleto en React Native). Es la misma estructura
-// que pinta ImageBackground en react-native-web, incluido el zIndex -1, así que la web se ve igual.
+// Un View con la imagen en posición absoluta (ImageBackground está obsoleto en React Native).
+// Celular: la foto se estira sólo con top/left/right/bottom 0, igual que la capa de color. Con width/height '100%'
+// Yoga mide el porcentaje sin el padding del contenedor y la foto quedaba corta (franja a la derecha y abajo).
+// Web: el mismo estilo que pinta ImageBackground en react-native-web (100% y zIndex -1), así que se ve igual.
 export function Faded({ source, color = C.ink, opacity = 0.82, style, children }) {
   return (
     <View style={[{ overflow: 'hidden', backgroundColor: color }, style]}>
       <Image source={source} resizeMode="cover" accessibilityIgnoresInvertColors
-        style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }, web && { zIndex: -1 }]} />
+        style={[StyleSheet.absoluteFill, web && { width: '100%', height: '100%', zIndex: -1 }]} />
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: color, opacity }} />
       {children}
     </View>
