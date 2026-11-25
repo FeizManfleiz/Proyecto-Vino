@@ -1,7 +1,8 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { Button, Card, Container, IMG, Kicker, P, TabHeader } from '../components';
 import { confirm } from '../dialogs';
+import { TabScroll } from '../mobile-ui';
 import { useSession } from '../session';
 import { C, F } from '../theme';
 import { useWines } from '../wines';
@@ -25,8 +26,7 @@ export default function Cuenta() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.cream }} contentContainerStyle={{ paddingBottom: 32 }}>
-      <TabHeader source={IMG.vineyardGold} kicker="Cuenta" title={user.name} />
+    <TabScroll header={<TabHeader source={IMG.vineyardGold} kicker="Cuenta" title={user.name} />}>
       <Container style={{ marginTop: -20, gap: 24 }}>
         <Card style={{ padding: 20 }}>
           <Kicker>TUS DATOS</Kicker>
@@ -41,6 +41,6 @@ export default function Cuenta() {
         </Card>
         <Button kind="outline" tone="wine" icon="logout" label="Cerrar sesión" onPress={onSignOut} />
       </Container>
-    </ScrollView>
+    </TabScroll>
   );
 }

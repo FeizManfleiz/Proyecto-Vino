@@ -1,9 +1,10 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { ScrollView, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useAnalysis, useSaveWine } from '../analysis';
 import { AnalysisForm, ModelNote, RecsCard, ResultCard, StatChips, Tip } from '../analysis-ui';
 import { Container, IMG, KeyboardAvoid, P, TabHeader } from '../components';
 import { markTipSeen, tipSeen } from '../history';
+import { TabScroll } from '../mobile-ui';
 import { usePdf } from '../pdf';
 import { useSession } from '../session';
 import { C } from '../theme';
@@ -41,13 +42,12 @@ export default function Analizar({ wineId, onWineOpened }) {
 
   return (
     <KeyboardAvoid>
-    <ScrollView ref={scroll} style={{ flex: 1, backgroundColor: C.cream }} contentContainerStyle={{ paddingBottom: 32 }}
-      keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <TabScroll scrollRef={scroll} automaticallyAdjustKeyboardInsets header={
       <TabHeader source={IMG.barrels} kicker={`Hola, ${user.name.split(' ')[0]}.`} title="Predicción.">
         <P size={16} color={C.sage} style={{ marginTop: 8 }}>Ajusta el análisis de laboratorio y mira la calidad cambiar en tiempo real.</P>
         <StatChips history={history} best={best} />
       </TabHeader>
-
+    }>
       <Container style={{ marginTop: -20, gap: 24 }}>
         {showTip ? <Tip onClose={closeTip} /> : null}
         <AnalysisForm a={a} s={s} wide={wide} pad={pad} />
@@ -55,7 +55,7 @@ export default function Analizar({ wineId, onWineOpened }) {
         <RecsCard a={a} wide={wide} pad={pad} pdfBusy={pdfBusy} onPdf={pdf} />
         <ModelNote />
       </Container>
-    </ScrollView>
+    </TabScroll>
     </KeyboardAvoid>
   );
 }
