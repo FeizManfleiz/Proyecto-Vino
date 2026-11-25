@@ -66,7 +66,8 @@ export default function AuthForm({ mode, onAuth }) {
             </View>
           )}
 
-          <Button label={isUp ? 'Sign up' : 'Sign in'} onPress={submit} loading={busy} />
+          {/* Celular en español. La web conserva su texto: es de Cesar y se le propuso el cambio en el PR. */}
+          <Button label={isUp ? (web ? 'Sign up' : 'Crear cuenta') : (web ? 'Sign in' : 'Iniciar sesión')} onPress={submit} loading={busy} />
           <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
             <Text style={{ fontFamily: F.body, color: C.muted, fontSize: 15 }}>{isUp ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? '}</Text>
             <TextLink label={isUp ? 'Inicia sesión' : 'Regístrate'} size={15} onPress={toOther} />

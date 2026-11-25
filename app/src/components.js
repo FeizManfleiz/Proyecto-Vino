@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { ImageBackground, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, SvgXml } from 'react-native-svg';
 import LOGO from './brand/logo-svg';
@@ -141,14 +141,17 @@ export function Field({ label, error, style, ...props }) {
   );
 }
 
-// Foto de fondo "deslavada": imagen + capa del color de marca encima
+// Foto de fondo "deslavada": imagen + capa del color de marca encima.
+// Un View con la imagen en posición absoluta (ImageBackground está obsoleto en React Native). Es la misma estructura
+// que pinta ImageBackground en react-native-web, incluido el zIndex -1, así que la web se ve igual.
 export function Faded({ source, color = C.ink, opacity = 0.82, style, children }) {
   return (
-    <ImageBackground source={source} resizeMode="cover" imageStyle={{ width: '100%', height: '100%' }}
-      style={[{ overflow: 'hidden', backgroundColor: color }, style]} accessibilityIgnoresInvertColors>
+    <View style={[{ overflow: 'hidden', backgroundColor: color }, style]}>
+      <Image source={source} resizeMode="cover" accessibilityIgnoresInvertColors
+        style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }, web && { zIndex: -1 }]} />
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: color, opacity }} />
       {children}
-    </ImageBackground>
+    </View>
   );
 }
 
