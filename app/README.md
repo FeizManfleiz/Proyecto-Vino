@@ -41,7 +41,23 @@ Cuentas: `src/auth.js` guarda los usuarios en el dispositivo (contraseña con ha
 - Tipo: regresión logística → 99.3% de acierto.
 - Sabor (dulzor, acidez, cuerpo, maridaje): reglas enológicas sobre la química; el dataset no trae sabores ni precios.
 
-Reentrenar: `npm run train` (los coeficientes de abajo cambian si cambian los datos).
+Reentrenar: `npm run train` (los coeficientes de abajo cambian si cambian los datos). Después: `npm test`.
+
+### Uso de los modelos en código
+```js
+const model = require('./src/model.json');
+const { predict, quality } = require('./src/model-core');
+const x = [7.4, 0.7, 0, 1.9, 0.076, 11, 34, 0.9978, 3.51, 0.56, 9.4]; // orden de model.features
+
+const r = predict(model, x);      // tipo automático; predict(model, x, 1) fuerza tinto
+r.quality;                        // calidad con el modelo de menor MSE (random forest)
+r.models;                         // [{ name, mse, quality }] de los 4 modelos, de menor a mayor MSE
+
+// Calidad con un modelo específico
+const gb = model.qualityModels.find(m => m.name === 'Gradient boosting');
+quality(model, x, r.isRed, gb);
+```
+Para que la app use otro modelo, cambiar `model.json → quality` por otra entrada de `qualityModels` (o quitar el candidato de `CANDIDATES` en `train.js` y reentrenar).
 
 ## Fórmulas
 
@@ -69,9 +85,23 @@ $$\mu_j = \frac{1}{n}\sum_{i=1}^{n} x_{ij} \qquad \sigma_j = \sqrt{\frac{1}{n}\s
 | Sulfatos | 0.5297 | 0.1460 |
 | Alcohol | 10.4941 | 1.1946 |
 
-### 3. Calidad: regresión lineal (ridge), candidato y respaldo
-La app usa el modelo de `model.json → quality` (hoy random forest: promedio de las hojas de 40 árboles CART sobre $[x_1,\dots,x_{11}, r]$). Los pesos ridge se siguen guardando en `qualityWeights`.
+### 3. Calidad: 4 modelos y cuál se usa
+Los 4 reciben las mismas 12 entradas (11 variables químicas + tipo $r$) y devuelven la calidad estimada $\hat q$, acotada a 0–10.
 
+| Modelo | Qué hace | Ventaja | Limitación |
+|---|---|---|---|
+| **Ridge** | Suma ponderada de las variables estandarizadas, con una penalización L2 pequeña que evita pesos extremos. | Interpretable: cada peso dice cuánto sube la calidad por desviación estándar. | Solo capta relaciones en línea recta; no ve combinaciones (p. ej. alcohol alto *y* acidez volátil baja). |
+| **Lasso** | Igual que ridge, pero la penalización es L1: puede dejar pesos en 0 y así descartar variables. | Selecciona variables automáticamente. | Mismo límite lineal que ridge. Aquí no descarta ninguna. |
+| **Random forest** | 40 árboles de decisión; cada uno aprende reglas "si alcohol > 11.2 y acidez volátil ≤ 0.3 → 6.4" con una muestra al azar de vinos y de variables. La predicción es el promedio de los 40. | Capta relaciones no lineales e interacciones; promediar reduce el sobreajuste. **Es el que usa la app.** | Menos interpretable; las predicciones cambian por escalones. |
+| **Gradient boosting** | 300 árboles pequeños en secuencia: cada uno corrige el error que dejaron los anteriores, sumando un 5% de su corrección. | También no lineal; suele ser muy preciso. | Más lento de entrenar (~20 s) y aquí quedó detrás de random forest. |
+
+**Cómo se elige:** `train.js` separa el 80% del train para ajustar y el 20% para validar, calcula el MSE de cada modelo en validación
+y los ordena de menor a mayor. Luego reentrena los 4 con todo el train, mide MSE/MAE en prueba y guarda los 4 en
+`model.json → qualityModels` (ordenados). El primero también se guarda en `model.json → quality` y es el que usa la app.
+
+$$\text{MSE} = \frac{1}{m}\sum_{i=1}^{m}(\hat q_i - q_i)^2$$
+
+#### 3a. Ridge
 Vector de diseño $\mathbf{d} = [1, z_1, \dots, z_{11}, r]$ (13 componentes). Predicción:
 
 $$\hat q = \mathbf{w}^\top \mathbf{d} = w_0 + \sum_{j=1}^{11} w_j z_j + w_{12}\, r \qquad \hat q_{\text{final}} = \min(10, \max(0, \hat q))$$
@@ -99,6 +129,35 @@ $$(D^\top D + \lambda I')\,\mathbf{w} = D^\top \mathbf{q} \qquad I' = \operatorn
 
 Como las variables están estandarizadas, el peso indica cuánto sube la calidad por cada desviación estándar.
 Lo que más sube la calidad: alcohol y azúcar residual (a densidad fija). Lo que más la baja: densidad y acidez volátil.
+
+Los pesos ridge se guardan además en `qualityWeights` (respaldo si un `model.json` viejo no trae `quality`).
+
+#### 3b. Lasso
+Mismo vector $[z_1,\dots,z_{11}, r]$, pero minimiza
+
+$$\frac{1}{2n}\sum_{i=1}^{n}(q_i - w_0 - \mathbf{w}^\top \mathbf{d}_i)^2 + \lambda \sum_{j=1}^{12}|w_j|$$
+
+por descenso por coordenadas: $w_j \leftarrow S(\rho_j, \lambda) / \overline{d_j^2}$, con $S(a,\lambda) = \operatorname{sign}(a)\max(0, |a|-\lambda)$
+y $\rho_j$ la correlación de $d_j$ con el residuo parcial. $\lambda \in \{0.001, 0.003, 0.01, 0.03, 0.1\}$ se elige con un 20% interno.
+Resultado: $\lambda = 0.001$, ninguna variable en 0, MSE igual a ridge.
+
+#### 3c. Árboles de decisión (base de random forest y boosting)
+Un árbol divide los vinos con preguntas "$x_j \le t$". En cada nodo prueba todos los cortes y se queda con el que más reduce el error cuadrático:
+
+$$\max_{j,t}\ \frac{S_L^2}{n_L} + \frac{S_R^2}{n_R} \qquad (S = \text{suma de calidades a cada lado})$$
+
+y la hoja predice el promedio de sus vinos. En `model.json` un nodo es `[variable, umbral, izquierda, derecha]` y una hoja es un número.
+
+#### 3d. Random forest
+40 árboles, cada uno con una muestra bootstrap (5197 vinos sorteados con reemplazo), 4 de las 12 variables al azar en cada corte,
+profundidad ≤ 16 y hojas de ≥ 5 vinos:
+
+$$\hat q = \frac{1}{40}\sum_{b=1}^{40} T_b(\mathbf{x}, r)$$
+
+#### 3e. Gradient boosting
+Parte del promedio $F_0 = \bar q$ y agrega 300 árboles de profundidad 4 (hojas ≥ 10), cada uno entrenado sobre el residuo actual:
+
+$$F_m = F_{m-1} + 0.05\, T_m \qquad T_m \approx q - F_{m-1} \qquad \hat q = F_{300}$$
 
 ### 4. Tipo: regresión logística
 Vector $\mathbf{d}' = [1, z_1, \dots, z_{11}]$:
@@ -129,6 +188,8 @@ En la app, si el usuario elige el tipo, se usa ese $r$; en "Auto" se usa el tipo
 ### 5. Métricas (conjunto de prueba, $m = 1300$)
 
 $$\text{MAE} = \frac{1}{m}\sum_{i=1}^{m}|\hat q_i - q_i| = 0.465 \qquad \text{MAE}_{\text{base}} = \frac{1}{m}\sum_{i=1}^{m}|6 - q_i| = 0.631$$
+
+$$\text{MSE}_{\text{random forest}} = 0.387 \qquad \text{MSE}_{\text{boosting}} = 0.433 \qquad \text{MSE}_{\text{ridge}} = \text{MSE}_{\text{lasso}} = 0.517$$
 
 $$\text{Accuracy} = \frac{\#\{\text{tipo predicho} = \text{tipo real}\}}{m} = 99.3\%$$
 

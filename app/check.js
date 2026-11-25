@@ -25,5 +25,7 @@ assert.strictEqual(model.metrics.validation.length, 4, 'se comparan 4 modelos');
 assert.ok(model.metrics.validation.every((s, i, a) => !i || a[i - 1].mse <= s.mse), 'ordenados por MSE');
 assert.deepStrictEqual(red.models.map(m => m.name), model.metrics.validation.map(s => s.name));
 assert.strictEqual(red.models[0].quality, red.quality, 'la app usa el de menor MSE');
+for (const m of red.models) assert.ok(m.quality > 4 && m.quality < 6.5, `${m.name}: tinto real calidad 5, predijo ${m.quality}`);
+for (const m of model.qualityModels) assert.ok(m.mse < model.metrics.validation.at(-1).mse + 0.1 && m.mse > 0, `${m.name}: MSE de prueba ${m.mse}`);
 assert.strictEqual(model.quality.name, model.metrics.validation[0].name, 'se guarda el de menor MAE de validación');
 console.log('OK', model.quality.name, red.quality.toFixed(2), white.quality.toFixed(2));
