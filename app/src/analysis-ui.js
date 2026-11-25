@@ -36,6 +36,13 @@ function Meter({ label, value }) {
   );
 }
 
+// Celular: los chips pasan sobre la foto del encabezado (p. ej. las etiquetas claras de Mis vinos), así que llevan
+// fondo tinta casi sólido (contraste ≥ 4.5:1 sobre el píxel más claro) y un filo claro para verse sobre el tinta liso.
+// La web conserva su chip translúcido.
+const CHIP = web
+  ? { backgroundColor: 'rgba(255,255,255,0.1)' }
+  : { backgroundColor: `${C.ink}e6`, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' }; // e6 = 90 %
+
 // Chips del encabezado: vinos guardados y mejor calificación
 export function StatChips({ history, best }) {
   return (
@@ -44,7 +51,7 @@ export function StatChips({ history, best }) {
         [`${history.length}`, history.length === 1 ? 'vino guardado' : 'vinos guardados'],
         [best ? best.quality.toFixed(1) : '—', 'tu mejor calificación'],
       ].map(([v, l]) => (
-        <View key={l} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: R.pill, paddingHorizontal: 14, paddingVertical: 6 }}>
+        <View key={l} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, ...CHIP, borderRadius: R.pill, paddingHorizontal: 14, paddingVertical: 6 }}>
           <Text style={{ fontFamily: F.display, fontSize: 18, color: C.sand }}>{v}</Text>
           <Text style={{ fontFamily: F.bodyMd, fontSize: 13, color: C.white }}>{l}</Text>
         </View>

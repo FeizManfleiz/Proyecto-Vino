@@ -1,8 +1,9 @@
-import { memo } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useId, useState } from 'react';
+import { Image, KeyboardAvoidingView, PixelRatio, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, SvgXml } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop, SvgXml } from 'react-native-svg';
 import LOGO from './brand/logo-svg';
+import { VEIL, veilLayers } from './photo-veil';
 import { C, F, R, MAXW, web } from './theme';
 
 // Una sola versión del logo en toda la app y los PDFs: título blanco, vid y "Vineyard" arena. Va siempre sobre fondo oscuro.
@@ -165,6 +166,80 @@ export const IMG = {
   bottles: require('../assets/img/bottles.jpg'),
 };
 
+// Encuadre de cada foto en los encabezados del celular. focusY: qué parte queda si hay que recortar (0 arriba,
+// 1 abajo). veil: el velo de photo-veil.js, si no es el de las pestañas.
+const FRAME = new Map([
+  [IMG.vineyardGold, { focusY: 0.6 }], // el sol y las hileras
+  [IMG.vineyardAerial, { veil: VEIL.aerial }],
+  [IMG.bottles, { focusY: 0.35 }], // las repisas con etiquetas
+]);
+
+// Encabezado con foto del celular (la web sigue con Faded). La foto conserva su proporción y nunca se pinta más grande
+// que su resolución (ancho ≤ píxeles / densidad de la pantalla), así se ve nítida en cualquier teléfono:
+// - Encabezado más alto que la foto: la foto se disuelve hacia `color` y lo de abajo queda liso.
+// - Encabezado más bajo: se recorta según `focusY`, y su borde de abajo también se disuelve.
+// - Foto más angosta que la pantalla (las botellas en 3×, todas en tableta): va a la derecha y su borde izquierdo
+//   nace suave del `color`, así el texto queda sobre fondo liso.
+// El velo (photo-veil.js) oscurece donde va el texto; su contraste se revisa sobre el píxel más claro de cada foto.
+export function PhotoHeader({ source, color = C.ink, veil, focusY, style, children }) {
+  const [box, setBox] = useState(null);
+  const frame = FRAME.get(source) ?? {};
+  const preset = veil ?? frame.veil ?? VEIL.tab;
+  const fy = focusY ?? frame.focusY ?? 0.5;
+  const onLayout = e => {
+    const { width, height } = e.nativeEvent.layout;
+    setBox(b => (b && Math.abs(b.width - width) < 0.5 && Math.abs(b.height - height) < 0.5 ? b : { width, height }));
+  };
+
+  let photo = null;
+  if (box) {
+    const a = Image.resolveAssetSource(source);
+    const w = Math.min(box.width, (a.width * (a.scale || 1)) / PixelRatio.get());
+    const h = (w * a.height) / a.width;
+    const clipped = h > box.height;
+    const narrow = w < box.width - 0.5;
+    photo = { w, h, top: clipped ? -(h - box.height) * fy : 0, visible: clipped ? box.height : h, layers: veilLayers(preset, { clipped, narrow }) };
+  }
+
+  return (
+    <View onLayout={onLayout} style={[{ overflow: 'hidden', backgroundColor: color }, style]}>
+      {photo && (
+        <View style={{ position: 'absolute', top: 0, right: 0, width: photo.w, height: photo.visible, overflow: 'hidden', pointerEvents: 'none' }}>
+          <Image source={source} resizeMode="cover" resizeMethod="scale" fadeDuration={0} accessibilityIgnoresInvertColors
+            style={{ position: 'absolute', left: 0, top: photo.top, width: photo.w, height: photo.h }} />
+          <Veil layers={photo.layers} color={color} width={photo.w} height={photo.visible} />
+        </View>
+      )}
+      {children}
+    </View>
+  );
+}
+
+// Velo de PhotoHeader con react-native-svg (componentes nativos en iOS y Android, incluidos en Expo Go).
+// Cada capa de photo-veil.js es un degradado del mismo color con su opacidad por parada, pintado en un rectángulo
+// que cubre la foto. Unidades objectBoundingBox (0–1 del rectángulo): la elipse radial r = 0.7071 pasa por las
+// esquinas, igual que la revisión de contraste.
+export function Veil({ layers, color, width, height }) {
+  const id = `velo${useId().replace(/[^\w-]/g, '')}`;
+  return (
+    <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
+      <Defs>
+        {layers.map((layer, i) => {
+          const stops = layer.stops.map(([p, a], j) => <Stop key={j} offset={p} stopColor={color} stopOpacity={a} />);
+          return layer.type === 'radial' ? (
+            <RadialGradient key={i} id={`${id}-${i}`} cx={0.5} cy={0.5} fx={0.5} fy={0.5} r={0.7071}>{stops}</RadialGradient>
+          ) : (
+            <LinearGradient key={i} id={`${id}-${i}`} x1={0} y1={0} x2={layer.dir === 'to right' ? 1 : 0} y2={layer.dir === 'to bottom' ? 1 : 0}>
+              {stops}
+            </LinearGradient>
+          );
+        })}
+      </Defs>
+      {layers.map((_, i) => <Rect key={i} x={0} y={0} width={width} height={height} fill={`url(#${id}-${i})`} />)}
+    </Svg>
+  );
+}
+
 // Barra de navegación fija (estilo apple.com) con el logo de la marca
 export function NavBar({ children, onLogo }) {
   return (
@@ -213,13 +288,13 @@ export function KeyboardAvoid({ children }) {
 export function TabHeader({ source, kicker, title, children }) {
   const { top } = useSafeAreaInsets();
   return (
-    <Faded source={source} color={C.ink} opacity={0.8} style={{ paddingTop: top + 12, paddingBottom: 44 }}>
+    <PhotoHeader source={source} color={C.ink} style={{ paddingTop: top + 12, paddingBottom: 44 }}>
       <Container>
         <Logo width={104} />
         {kicker ? <Text style={{ fontFamily: F.bodyMd, color: C.sand, fontSize: 15, marginTop: 18 }}>{kicker}</Text> : null}
         <H size={38} color={C.white} style={{ marginTop: kicker ? 4 : 18 }}>{title}</H>
         {children}
       </Container>
-    </Faded>
+    </PhotoHeader>
   );
 }
