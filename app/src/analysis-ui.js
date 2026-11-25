@@ -11,7 +11,7 @@ import { LABELS, PRESETS, shortLabel, unit } from './wine-data';
 
 export const TYPES = [['Auto', undefined], ['Tinto', 1], ['Blanco', 0]];
 // Niveles en orden de intensidad, para los medidores
-const SCALES = {
+export const SCALES = {
   Dulzor: ['Seco', 'Semiseco', 'Semidulce', 'Dulce'],
   Acidez: ['Baja (suave)', 'Media', 'Alta (vibrante)'],
   Cuerpo: ['Ligero', 'Medio', 'Robusto'],
