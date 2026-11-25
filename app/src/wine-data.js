@@ -17,3 +17,29 @@ export const PRESETS = {
 
 export const shortLabel = f => LABELS[f].replace(/ \(.*\)/, '');
 export const unit = f => LABELS[f].match(/\((.*)\)/)?.[1] || '';
+
+// Mínimo y máximo de cada medición en los 6,497 vinos de wine.csv: lo que el modelo conoce.
+// check.js verifica que coincidan con el CSV.
+export const RANGES = {
+  'fixed acidity': [3.8, 15.9], 'volatile acidity': [0.08, 1.58], 'citric acid': [0, 1.66], 'residual sugar': [0.6, 65.8],
+  chlorides: [0.009, 0.611], 'free sulfur dioxide': [1, 289], 'total sulfur dioxide': [6, 440], density: [0.98711, 1.03898],
+  pH: [2.72, 4.01], sulphates: [0.22, 2], alcohol: [8, 14.9],
+};
+
+// Texto corto si `v` está fuera de lo que conoce el modelo; null si está dentro
+export function rangeIssue(f, v) {
+  const [lo, hi] = RANGES[f];
+  return v < lo || v > hi ? `Fuera de rango: ${lo} a ${hi}` : null;
+}
+
+// Problema de un campo del análisis tal como se escribió, o null.
+// bad: impide calcular (mismas reglas que analysis.js); si no, sólo avisa que está fuera de rango.
+export function fieldIssue(f, raw) {
+  const t = String(raw).trim();
+  if (t === '') return { bad: true, empty: true, text: 'Falta este valor' };
+  const v = Number(t.replace(',', '.'));
+  if (!Number.isFinite(v)) return { bad: true, text: 'Escribe un número (punto o coma)' };
+  if (v < 0) return { bad: true, text: 'No puede ser negativo' };
+  const text = rangeIssue(f, v);
+  return text ? { bad: false, text } : null;
+}

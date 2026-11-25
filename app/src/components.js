@@ -39,8 +39,8 @@ const ICONS = {
 export const RIPPLE = { color: 'rgba(94,25,44,0.10)' };
 export const RIPPLE_ROUND = { ...RIPPLE, borderless: true, radius: 22 };
 
-// Control segmentado (píldoras) con semántica de radio
-export function Segmented({ options, value, onChange, label, dark }) {
+// Control segmentado (píldoras) con semántica de radio. El celular pasa minHeight={48}.
+export function Segmented({ options, value, onChange, label, dark, minHeight = 40 }) {
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: 'row', backgroundColor: dark ? 'rgba(255,255,255,0.08)' : C.cream, borderRadius: R.pill, padding: 4, alignSelf: 'flex-start', flexWrap: 'wrap' }}>
       {options.map(([text, v]) => {
@@ -48,7 +48,7 @@ export function Segmented({ options, value, onChange, label, dark }) {
         return (
           <Pressable key={text} onPress={() => onChange(v)} accessibilityRole="radio" accessibilityState={{ checked: on }}
             style={({ hovered }) => ({
-              paddingHorizontal: 18, minHeight: 40, justifyContent: 'center', borderRadius: R.pill, cursor: web ? 'pointer' : undefined,
+              paddingHorizontal: 18, minHeight, justifyContent: 'center', borderRadius: R.pill, cursor: web ? 'pointer' : undefined,
               backgroundColor: on ? (dark ? C.sand : C.wine) : hovered ? (dark ? 'rgba(255,255,255,0.12)' : C.line) : 'transparent',
             })}>
             <Text style={{ fontFamily: F.bodySb, fontSize: 14, color: on ? (dark ? C.ink : C.white) : dark ? C.white : C.ink }}>{text}</Text>
@@ -142,13 +142,15 @@ export function Field({ label, error, style, ...props }) {
 }
 
 // Foto de fondo "deslavada": imagen + capa del color de marca encima.
-// Un View con la imagen en posición absoluta (ImageBackground está obsoleto en React Native). Es la misma estructura
-// que pinta ImageBackground en react-native-web, incluido el zIndex -1, así que la web se ve igual.
+// Un View con la imagen en posición absoluta (ImageBackground está obsoleto en React Native).
+// Celular: la foto se estira sólo con top/left/right/bottom 0, igual que la capa de color. Con width/height '100%'
+// Yoga mide el porcentaje sin el padding del contenedor y la foto quedaba corta (franja a la derecha y abajo).
+// Web: el mismo estilo que pinta ImageBackground en react-native-web (100% y zIndex -1), así que se ve igual.
 export function Faded({ source, color = C.ink, opacity = 0.82, style, children }) {
   return (
     <View style={[{ overflow: 'hidden', backgroundColor: color }, style]}>
       <Image source={source} resizeMode="cover" accessibilityIgnoresInvertColors
-        style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }, web && { zIndex: -1 }]} />
+        style={[StyleSheet.absoluteFill, web && { width: '100%', height: '100%', zIndex: -1 }]} />
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: color, opacity }} />
       {children}
     </View>
@@ -177,8 +179,8 @@ export function NavBar({ children, onLogo }) {
   );
 }
 
-export const Container = ({ style, children }) => (
-  <View style={[{ maxWidth: MAXW, width: '100%', alignSelf: 'center', paddingHorizontal: 20 }, style]}>{children}</View>
+export const Container = ({ style, children, ...p }) => (
+  <View style={[{ maxWidth: MAXW, width: '100%', alignSelf: 'center', paddingHorizontal: 20 }, style]} {...p}>{children}</View>
 );
 
 export const H = ({ size = 56, color = C.ink, style, children, ...p }) => (
