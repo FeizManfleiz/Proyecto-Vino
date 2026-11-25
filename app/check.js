@@ -21,4 +21,9 @@ const { percentile } = require('./src/model-core');
 assert.strictEqual(percentile(model, 0, 1), 0);
 assert.strictEqual(percentile(model, 10, 0), 100);
 assert.ok(percentile(model, 6.2, 1) > percentile(model, 5.2, 1));
-console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2));
+assert.ok(model.cuts[0] > model.cuts[1] && model.cuts[1] > model.cuts[2], 'cortes de gama ordenados');
+const rc = predict(model, [5.5, 0.5, 0.2, 1.5, 0.06, 15, 50, 0.9945, 3.55, 0.65, 13.2]); // = PRESETS['Romanée-Conti (estimado)'] = REFERENCES en train.js
+assert.strictEqual(rc.isRed, 1);
+assert.ok(rc.quality >= 7, `entrenado como referencia de alta gama, debe predecir ≥7: ${rc.quality}`);
+assert.strictEqual(rc.tier.name, 'Premium', `Romanée-Conti estimado debe ser Premium, predijo ${rc.quality}`);
+console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2), 'RC', rc.quality.toFixed(2), rc.tier.name);
