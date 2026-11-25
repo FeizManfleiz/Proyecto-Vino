@@ -1,15 +1,18 @@
 import { NativeTabs } from 'expo-router/native-tabs';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSession } from '@/session';
 import { C, F } from '@/theme';
 import { WinesProvider } from '@/wines';
 
 // Pestañas del celular (la web no las monta: ver el guard en src/app/_layout.js).
 // Atrás recorre las pestañas visitadas y luego sale; en Android la barra pone sola el área segura de abajo.
+// GestureHandlerRootView: los gestos de Gesture Handler (deslizar filas, arrastrar hojas) sólo funcionan debajo de él.
 export default function AppTabs() {
   const { user } = useSession();
   // Al cerrar sesión el guard quita estas pantallas; mientras tanto no se pinta nada que lea `user`
   if (!user) return null;
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <WinesProvider email={user.email}>
       <NativeTabs
         backBehavior="history"
@@ -42,5 +45,6 @@ export default function AppTabs() {
         </NativeTabs.Trigger>
       </NativeTabs>
     </WinesProvider>
+    </GestureHandlerRootView>
   );
 }
