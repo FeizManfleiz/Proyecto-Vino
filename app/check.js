@@ -43,14 +43,14 @@ assert.ok(fieldIssue('pH', ' ').bad && fieldIssue('pH', 'abc').bad && fieldIssue
 assert.strictEqual(fieldIssue('pH', '35').bad, false, 'fuera de rango sólo avisa');
 
 // Velo de las fotos del celular: opacidades válidas, sin cortes duros y fundido al color liso
-const { VEIL, veilLayers, veilCss } = require('./src/photo-veil.js');
+const { VEIL, veilLayers } = require('./src/photo-veil.js');
 Object.entries(VEIL).forEach(([name, veil]) => [false, true].forEach(clipped => [false, true].forEach(narrow => {
   const layers = veilLayers(veil, { clipped, narrow });
   layers.forEach(({ stops }) => stops.forEach(([p, a], i) => {
     assert.ok(a >= 0 && a <= 1 && p >= 0 && p <= 1, `${name}: parada fuera de 0–1`);
     if (i) assert.ok(p >= stops[i - 1][0], `${name}: paradas desordenadas`);
     // sin quiebres: entre paradas vecinas la opacidad cambia poco (la curva es suave)
-    if (i) assert.ok(Math.abs(a - stops[i - 1][1]) <= 0.2, `${name}: salto de opacidad ${stops[i - 1][1]} → ${a}`);
+    if (i) assert.ok(Math.abs(a - stops[i - 1][1]) <= 0.15, `${name}: salto de opacidad ${stops[i - 1][1]} → ${a}`);
   }));
   const v = layers[0].stops;
   if (!clipped) assert.strictEqual(v[v.length - 1][1], 1, `${name}: la foto debe terminar en el color liso`);
@@ -58,7 +58,8 @@ Object.entries(VEIL).forEach(([name, veil]) => [false, true].forEach(clipped => 
     const edge = layers[1].stops;
     assert.ok(edge[0][1] === 1 && edge[1][1] > 0.97, `${name}: el borde izquierdo de una foto angosta debe nacer suave del color`);
   }
-  assert.strictEqual(veilCss('#20151d', layers).match(/-gradient\(/g).length, layers.length);
+  // Veil (components.js) dibuja con SVG sólo estas formas: lineal hacia abajo o a la derecha, o radial
+  layers.forEach(l => assert.ok(l.type === 'radial' || (l.type === 'linear' && ['to bottom', 'to right'].includes(l.dir)), `${name}: capa ${l.type} ${l.dir}`));
 })));
 
 console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2), 'RC', rc.quality.toFixed(2), rc.tier.name, '· rangos', rows.length, 'vinos');

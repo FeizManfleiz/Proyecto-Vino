@@ -1,5 +1,7 @@
 // Velo de las fotos de encabezado del celular (PhotoHeader en components.js). Sin React Native: check.js también
-// lo prueba, y la revisión de contraste usa exactamente estas paradas.
+// lo prueba, y la revisión de contraste usa exactamente estas paradas. Se dibuja con LinearGradient y
+// RadialGradient de react-native-svg (componente Veil): los gradientes CSS de `backgroundImage` no se pintaron en
+// iOS con Expo Go.
 //
 // Paradas [posición 0–1, opacidad del color de fondo]. Entre dos paradas la opacidad sigue una curva suave
 // (smoothstep): la pendiente es cero en cada parada, así no hay quiebres que el ojo lea como una raya o un corte
@@ -55,15 +57,4 @@ export function veilLayers(veil, { clipped, narrow }) {
   if (veil.h) layers.push({ type: 'linear', dir: 'to right', stops: smooth(veil.h) });
   if (veil.radial) layers.push({ type: 'radial', stops: smooth(veil.radial) });
   return layers;
-}
-
-const rgba = (hex, a) =>
-  `rgba(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)}, ${+a.toFixed(3)})`;
-
-// Valor de `backgroundImage` (gradientes CSS de React Native)
-export function veilCss(color, layers) {
-  return layers.map(({ type, dir, stops }) => {
-    const list = stops.map(([p, a]) => `${rgba(color, a)} ${+(p * 100).toFixed(2)}%`).join(', ');
-    return type === 'radial' ? `radial-gradient(ellipse at center, ${list})` : `linear-gradient(${dir}, ${list})`;
-  }).join(', ');
 }

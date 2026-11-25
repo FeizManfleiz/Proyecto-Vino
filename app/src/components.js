@@ -1,9 +1,9 @@
-import { memo, useState } from 'react';
+import { memo, useId, useState } from 'react';
 import { Image, KeyboardAvoidingView, PixelRatio, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, SvgXml } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop, SvgXml } from 'react-native-svg';
 import LOGO from './brand/logo-svg';
-import { VEIL, veilCss, veilLayers } from './photo-veil';
+import { VEIL, veilLayers } from './photo-veil';
 import { C, F, R, MAXW, web } from './theme';
 
 // Una sola versión del logo en toda la app y los PDFs: título blanco, vid y "Vineyard" arena. Va siempre sobre fondo oscuro.
@@ -198,8 +198,7 @@ export function PhotoHeader({ source, color = C.ink, veil, focusY, style, childr
     const h = (w * a.height) / a.width;
     const clipped = h > box.height;
     const narrow = w < box.width - 0.5;
-    const css = veilCss(color, veilLayers(preset, { clipped, narrow }));
-    photo = { w, h, top: clipped ? -(h - box.height) * fy : 0, visible: clipped ? box.height : h, css };
+    photo = { w, h, top: clipped ? -(h - box.height) * fy : 0, visible: clipped ? box.height : h, layers: veilLayers(preset, { clipped, narrow }) };
   }
 
   return (
@@ -208,11 +207,36 @@ export function PhotoHeader({ source, color = C.ink, veil, focusY, style, childr
         <View style={{ position: 'absolute', top: 0, right: 0, width: photo.w, height: photo.visible, overflow: 'hidden', pointerEvents: 'none' }}>
           <Image source={source} resizeMode="cover" resizeMethod="scale" fadeDuration={0} accessibilityIgnoresInvertColors
             style={{ position: 'absolute', left: 0, top: photo.top, width: photo.w, height: photo.h }} />
-          <View style={{ ...StyleSheet.absoluteFillObject, backgroundImage: photo.css }} />
+          <Veil layers={photo.layers} color={color} width={photo.w} height={photo.visible} />
         </View>
       )}
       {children}
     </View>
+  );
+}
+
+// Velo de PhotoHeader con react-native-svg (componentes nativos en iOS y Android, incluidos en Expo Go).
+// Cada capa de photo-veil.js es un degradado del mismo color con su opacidad por parada, pintado en un rectángulo
+// que cubre la foto. Unidades objectBoundingBox (0–1 del rectángulo): la elipse radial r = 0.7071 pasa por las
+// esquinas, igual que la revisión de contraste.
+export function Veil({ layers, color, width, height }) {
+  const id = `velo${useId().replace(/[^\w-]/g, '')}`;
+  return (
+    <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
+      <Defs>
+        {layers.map((layer, i) => {
+          const stops = layer.stops.map(([p, a], j) => <Stop key={j} offset={p} stopColor={color} stopOpacity={a} />);
+          return layer.type === 'radial' ? (
+            <RadialGradient key={i} id={`${id}-${i}`} cx={0.5} cy={0.5} fx={0.5} fy={0.5} r={0.7071}>{stops}</RadialGradient>
+          ) : (
+            <LinearGradient key={i} id={`${id}-${i}`} x1={0} y1={0} x2={layer.dir === 'to right' ? 1 : 0} y2={layer.dir === 'to bottom' ? 1 : 0}>
+              {stops}
+            </LinearGradient>
+          );
+        })}
+      </Defs>
+      {layers.map((_, i) => <Rect key={i} x={0} y={0} width={width} height={height} fill={`url(#${id}-${i})`} />)}
+    </Svg>
   );
 }
 
