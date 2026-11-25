@@ -29,14 +29,9 @@ const design = r => [1, ...z(r.x), r.red];
 const k = FEATURES.length + 2;
 const A = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (i === j && i > 0 ? 1e-3 : 0)));
 const b = Array(k).fill(0);
-// Referencias de alta gama (no vienen del dataset; solo entran a la regresión de calidad). w = cuántos vinos "vale".
-// Peso 50: con más el error de prueba empeora (w=200 → MAE 0.594), con 1 no mueve nada (5197 vinos más).
-const REFERENCES = [
-  { name: 'Romanée-Conti (estimado)', x: [5.5, 0.5, 0.2, 1.5, 0.06, 15, 50, 0.9945, 3.55, 0.65, 13.2], red: 1, q: 10, w: 50 },
-];
-for (const r of [...train, ...REFERENCES]) {
-  const d = design(r), w = r.w ?? 1;
-  for (let i = 0; i < k; i++) { b[i] += w * d[i] * r.q; for (let j = 0; j < k; j++) A[i][j] += w * d[i] * d[j]; }
+for (const r of train) {
+  const d = design(r);
+  for (let i = 0; i < k; i++) { b[i] += d[i] * r.q; for (let j = 0; j < k; j++) A[i][j] += d[i] * d[j]; }
 }
 for (let i = 0; i < k; i++) { // eliminación de Gauss con pivoteo
   const p = A.slice(i).reduce((m, row, idx) => (Math.abs(row[i]) > Math.abs(A[m][i]) ? idx + i : m), i);
@@ -80,14 +75,7 @@ const acc = test.filter(r => (predict(model, r.x).pRed > 0.5 ? 1 : 0) === r.red)
 const base = test.reduce((s, r) => s + Math.abs(6 - r.q), 0) / test.length;
 console.log(`train=${train.length} test=${test.length}`);
 console.log(`calidad MAE=${mae.toFixed(3)} (siempre-6 MAE=${base.toFixed(3)})  tipo accuracy=${(acc * 100).toFixed(1)}%`);
-for (const r of REFERENCES) console.log(`referencia ${r.name}: predice ${predict(model, r.x, r.red).quality.toFixed(2)} (etiqueta ${r.q})`);
 if (!(mae < base && acc > 0.95)) throw new Error('El modelo no supera la línea base, no se guarda');
-
-// Cortes de gama por cuantiles: la regresión comprime las predicciones hacia la media (los tintos reales de 8 salen ~6–7),
-// así que el % de vinos predichos en cada gama se iguala al % real con calidad ≥7, ≥6 y ≥5 en entrenamiento.
-const preds = train.map(r => predict(model, r.x, r.red).quality).sort((a, b) => a - b);
-model.cuts = [7, 6, 5].map(t => preds[Math.floor(preds.length * (1 - train.filter(r => r.q >= t).length / train.length))]);
-console.log(`cortes de gama (Premium, Bueno, Estándar): ${model.cuts.map(c => c.toFixed(2)).join(', ')}`);
 
 fs.writeFileSync('src/model.json', JSON.stringify({ ...model, metrics: { mae, acc, n: rows.length } }));
 console.log('src/model.json escrito');

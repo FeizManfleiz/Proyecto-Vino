@@ -9,14 +9,13 @@ function predict(model, x, red) {
   const isRed = red ?? (pRed > 0.5 ? 1 : 0);
   const raw = dot([1, ...z, isRed], model.qualityWeights);
   const quality = Math.min(10, Math.max(0, raw));
-  return { quality, pRed, isRed, tier: tier(quality, model.cuts), flavor: flavor(model, x, isRed) };
+  return { quality, pRed, isRed, tier: tier(quality), flavor: flavor(model, x, isRed) };
 }
 
-// cuts = [Premium, Bueno, Estándar], calibrados en train.js; [7, 6, 5] solo si el model.json es anterior.
-function tier(q, [premium, bueno, estandar] = [7, 6, 5]) {
-  if (q >= premium) return { name: 'Premium', desc: 'Calidad alta, por encima de la gran mayoría del dataset.' };
-  if (q >= bueno) return { name: 'Bueno', desc: 'Calidad sobre el promedio.' };
-  if (q >= estandar) return { name: 'Estándar', desc: 'Calidad promedio, vino de consumo diario.' };
+function tier(q) {
+  if (q >= 7) return { name: 'Premium', desc: 'Calidad alta, por encima de la gran mayoría del dataset.' };
+  if (q >= 6) return { name: 'Bueno', desc: 'Calidad sobre el promedio.' };
+  if (q >= 5) return { name: 'Estándar', desc: 'Calidad promedio, vino de consumo diario.' };
   return { name: 'Bajo', desc: 'Calidad por debajo del promedio; revisar defectos.' };
 }
 
