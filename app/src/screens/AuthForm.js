@@ -3,7 +3,8 @@ import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signIn, signUp } from '../auth';
-import { Button, Faded, Field, H, IMG, KeyboardAvoid, Logo, P, PhotoHeader, SCRIM, TextLink } from '../components';
+import { Button, Faded, Field, H, IMG, KeyboardAvoid, Logo, P, PhotoHeader, TextLink } from '../components';
+import { VEIL } from '../photo-veil';
 import { C, F, R, web } from '../theme';
 
 // mode: 'signin' | 'signup'. Al autenticarse, las rutas protegidas llevan solas a la app (src/app/_layout.js).
@@ -39,7 +40,7 @@ export default function AuthForm({ mode, onAuth }) {
 
   return (
     <View style={{ flex: 1, flexDirection: wide ? 'row' : 'column', backgroundColor: C.cream }}>
-      <Hero source={IMG.vineyardGold} color={C.wine} opacity={0.84} scrim={SCRIM.logo} style={{ flex: wide ? 1 : undefined, alignItems: 'center', justifyContent: 'center', padding: wide ? 48 : 28, paddingTop: (wide ? 48 : 28) + insets.top, gap: 24 }}>
+      <Hero source={IMG.vineyardGold} color={C.wine} opacity={0.84} veil={VEIL.logo} style={{ flex: wide ? 1 : undefined, alignItems: 'center', justifyContent: 'center', padding: wide ? 48 : 28, paddingTop: (wide ? 48 : 28) + insets.top, gap: 24 }}>
         <Logo width={Math.min(wide ? 440 : 260, width - 56)} />
         {wide && (
           <P color="#f3e7ea" style={{ textAlign: 'center', maxWidth: 420 }}>

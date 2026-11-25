@@ -3,6 +3,7 @@ import { Image, KeyboardAvoidingView, PixelRatio, Platform, Pressable, StyleShee
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, SvgXml } from 'react-native-svg';
 import LOGO from './brand/logo-svg';
+import { VEIL, veilCss, veilLayers } from './photo-veil';
 import { C, F, R, MAXW, web } from './theme';
 
 // Una sola versión del logo en toda la app y los PDFs: título blanco, vid y "Vineyard" arena. Va siempre sobre fondo oscuro.
@@ -165,36 +166,25 @@ export const IMG = {
   bottles: require('../assets/img/bottles.jpg'),
 };
 
-// Velo de PhotoHeader: paradas [posición 0–1, opacidad del color de fondo].
-// v: de arriba abajo · h: de izquierda a derecha (el texto va alineado a la izquierda) · radial: del centro a las esquinas.
-// Revisados con contraste WCAG sobre cada foto en teléfonos de 360 a 430 dp y densidad 2.6× a 3.5×:
-// ≥ 4.5:1 en textos chicos (saludo, párrafo, chips) y ≥ 3:1 en títulos y logo.
-const TEXT_LEFT = [[0, 0.7], [0.75, 0]];
-export const SCRIM = {
-  tab: { v: [[0, 0.55], [0.45, 0.25], [0.75, 0.55], [1, 1]], h: TEXT_LEFT },
-  tabBright: { v: [[0, 0.6], [0.45, 0.42], [0.75, 0.65], [1, 1]], h: TEXT_LEFT }, // vista aérea: tierra clara bajo el texto
-  logo: { v: [[0, 0.35], [0.6, 0.3], [1, 0.85]], radial: [[0, 0.7], [0.55, 0.45], [1, 0.2]] }, // logo centrado
-};
-// Encuadre de cada foto en los encabezados del celular. focusY: qué parte queda si hay que recortar (0 arriba, 1 abajo).
+// Encuadre de cada foto en los encabezados del celular. focusY: qué parte queda si hay que recortar (0 arriba,
+// 1 abajo). veil: el velo de photo-veil.js, si no es el de las pestañas.
 const FRAME = new Map([
   [IMG.vineyardGold, { focusY: 0.6 }], // el sol y las hileras
-  [IMG.vineyardAerial, { scrim: SCRIM.tabBright }],
+  [IMG.vineyardAerial, { veil: VEIL.aerial }],
   [IMG.bottles, { focusY: 0.35 }], // las repisas con etiquetas
 ]);
-
-const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)}, ${a})`;
-const stops = (color, list) => list.map(([p, a]) => `${rgba(color, a)} ${+(p * 100).toFixed(1)}%`).join(', ');
 
 // Encabezado con foto del celular (la web sigue con Faded). La foto conserva su proporción y nunca se pinta más grande
 // que su resolución (ancho ≤ píxeles / densidad de la pantalla), así se ve nítida en cualquier teléfono:
 // - Encabezado más alto que la foto: la foto se disuelve hacia `color` y lo de abajo queda liso.
 // - Encabezado más bajo: se recorta según `focusY`, y su borde de abajo también se disuelve.
 // - Foto más angosta que la pantalla (las botellas en 3×, todas en tableta): va a la derecha y su borde izquierdo
-//   se disuelve en `color`, así el texto queda sobre fondo liso.
-export function PhotoHeader({ source, color = C.ink, scrim, focusY, style, children }) {
+//   nace suave del `color`, así el texto queda sobre fondo liso.
+// El velo (photo-veil.js) oscurece donde va el texto; su contraste se revisa sobre el píxel más claro de cada foto.
+export function PhotoHeader({ source, color = C.ink, veil, focusY, style, children }) {
   const [box, setBox] = useState(null);
   const frame = FRAME.get(source) ?? {};
-  const sc = scrim ?? frame.scrim ?? SCRIM.tab;
+  const preset = veil ?? frame.veil ?? VEIL.tab;
   const fy = focusY ?? frame.focusY ?? 0.5;
   const onLayout = e => {
     const { width, height } = e.nativeEvent.layout;
@@ -208,13 +198,8 @@ export function PhotoHeader({ source, color = C.ink, scrim, focusY, style, child
     const h = (w * a.height) / a.width;
     const clipped = h > box.height;
     const narrow = w < box.width - 0.5;
-    // El borde de abajo siempre termina en el color liso si la foto acaba antes que el encabezado
-    const v = clipped ? sc.v : sc.v.map(([p, o], i) => [p, i === sc.v.length - 1 ? 1 : o]);
-    const h2 = narrow ? [[0, 1], ...(sc.h ?? [[0, 0]]).map(([p, o]) => [0.35 + p * 0.6, o])] : sc.h;
-    const layers = [`linear-gradient(to bottom, ${stops(color, v)})`];
-    if (h2) layers.push(`linear-gradient(to right, ${stops(color, h2)})`);
-    if (sc.radial) layers.push(`radial-gradient(ellipse at center, ${stops(color, sc.radial)})`);
-    photo = { w, h, top: clipped ? -(h - box.height) * fy : 0, visible: clipped ? box.height : h, veil: layers.join(', ') };
+    const css = veilCss(color, veilLayers(preset, { clipped, narrow }));
+    photo = { w, h, top: clipped ? -(h - box.height) * fy : 0, visible: clipped ? box.height : h, css };
   }
 
   return (
@@ -223,7 +208,7 @@ export function PhotoHeader({ source, color = C.ink, scrim, focusY, style, child
         <View style={{ position: 'absolute', top: 0, right: 0, width: photo.w, height: photo.visible, overflow: 'hidden', pointerEvents: 'none' }}>
           <Image source={source} resizeMode="cover" resizeMethod="scale" fadeDuration={0} accessibilityIgnoresInvertColors
             style={{ position: 'absolute', left: 0, top: photo.top, width: photo.w, height: photo.h }} />
-          <View style={{ ...StyleSheet.absoluteFillObject, backgroundImage: photo.veil }} />
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundImage: photo.css }} />
         </View>
       )}
       {children}
