@@ -75,7 +75,7 @@ export function reportBody(model, labels, values, r, recs) {
 del modelo si sólo cambiara esa variable; en la práctica las variables se influyen entre sí.</p>
 ${recsHtml(recs, labels)}
 <h2>Datos ingresados</h2><table class="t">${rows}</table>
-<p><small>Modelo de regresión lineal entrenado con ${model.metrics.n} vinos (error medio ±${model.metrics.mae.toFixed(2)} puntos).
+<p><small>Modelo ${(model.metrics.model ?? 'regresión lineal').toLowerCase()} entrenado con ${model.metrics.n} vinos (error medio ±${model.metrics.mae.toFixed(2)} puntos).
 El perfil de sabor se deduce por reglas enológicas, no por cata.</small></p>`;
 }
 

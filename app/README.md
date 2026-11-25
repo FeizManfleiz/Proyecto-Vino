@@ -25,7 +25,19 @@ Cuentas: `src/auth.js` guarda los usuarios en el dispositivo (contraseña con ha
 
 ## Modelo
 `train.js` lee `wine.csv` (= `wine-quality-white-and-red.csv` de la rama `DB_Vinos`, 6497 vinos) y genera `src/model.json`:
-- Calidad: regresión lineal → error medio ±0.55 pts (prueba 20%).
+- Calidad: se comparan **4 modelos** por **MSE** en validación (20% del train), se reentrenan con todo el train y se usa el de menor MSE.
+  `predict(...).models` devuelve la predicción de cada modelo con su MSE.
+
+  | Modelo | MSE validación | MSE prueba | MAE prueba |
+  |---|---|---|---|
+  | **Random forest** (40 árboles, 4 de 12 variables por corte, hoja ≥5) | **0.433** | **0.387** | **0.465** |
+  | Gradient boosting (300 árboles prof. 4, tasa 0.05) | 0.474 | 0.433 | 0.504 |
+  | Ridge (lineal) | 0.544 | 0.517 | 0.554 |
+  | Lasso (L1, λ elegido en {0.001…0.1} con validación interna) | 0.544 | 0.517 | 0.554 |
+
+  Lasso no aporta: elige el λ más chico (0.001), no descarta ninguna variable y queda igual que ridge.
+
+  Ganador: random forest. `src/model.json` pesa ~780 KB por guardar los 4 modelos.
 - Tipo: regresión logística → 99.3% de acierto.
 - Sabor (dulzor, acidez, cuerpo, maridaje): reglas enológicas sobre la química; el dataset no trae sabores ni precios.
 
@@ -57,7 +69,9 @@ $$\mu_j = \frac{1}{n}\sum_{i=1}^{n} x_{ij} \qquad \sigma_j = \sqrt{\frac{1}{n}\s
 | Sulfatos | 0.5297 | 0.1460 |
 | Alcohol | 10.4941 | 1.1946 |
 
-### 3. Calidad: regresión lineal (ridge)
+### 3. Calidad: regresión lineal (ridge), candidato y respaldo
+La app usa el modelo de `model.json → quality` (hoy random forest: promedio de las hojas de 40 árboles CART sobre $[x_1,\dots,x_{11}, r]$). Los pesos ridge se siguen guardando en `qualityWeights`.
+
 Vector de diseño $\mathbf{d} = [1, z_1, \dots, z_{11}, r]$ (13 componentes). Predicción:
 
 $$\hat q = \mathbf{w}^\top \mathbf{d} = w_0 + \sum_{j=1}^{11} w_j z_j + w_{12}\, r \qquad \hat q_{\text{final}} = \min(10, \max(0, \hat q))$$
@@ -65,30 +79,26 @@ $$\hat q = \mathbf{w}^\top \mathbf{d} = w_0 + \sum_{j=1}^{11} w_j z_j + w_{12}\,
 Los pesos se obtienen resolviendo las ecuaciones normales con regularización ridge ($\lambda = 10^{-3}$, sin penalizar el intercepto),
 por eliminación de Gauss con pivoteo parcial:
 
-$$(D^\top W D + \lambda I')\,\mathbf{w} = D^\top W \mathbf{q} \qquad I' = \operatorname{diag}(0,1,\dots,1)$$
+$$(D^\top D + \lambda I')\,\mathbf{w} = D^\top \mathbf{q} \qquad I' = \operatorname{diag}(0,1,\dots,1)$$
 
-$W$ es diagonal: peso 1 para cada vino del dataset y $w_{\text{ref}} = 50$ para la referencia de alta gama
-(Romanée-Conti estimado, calidad 10; ver `REFERENCES` en `train.js` y la sección 6). La referencia solo entra a esta regresión.
-
-| Término | Peso $w$ | Sin referencia |
-|---|---|---|
-| Intercepto | 5.7738 | 5.7413 |
-| Acidez fija | −0.1376 | 0.1278 |
-| Acidez volátil | −0.2828 | −0.2410 |
-| Ácido cítrico | −0.0000 | −0.0076 |
-| Azúcar residual | 0.0159 | 0.3099 |
-| Cloruros | −0.0386 | −0.0174 |
-| SO₂ libre | 0.0768 | 0.0810 |
-| SO₂ total | −0.0601 | −0.0824 |
-| Densidad | 0.1929 | −0.3277 |
-| pH | −0.0219 | 0.0815 |
-| Sulfatos | 0.0734 | 0.1119 |
-| Alcohol | 0.5507 | 0.2557 |
-| Es tinto ($r$) | 0.2988 | 0.3221 |
+| Término | Peso $w$ |
+|---|---|
+| Intercepto | 5.7413 |
+| Acidez fija | 0.1278 |
+| Acidez volátil | −0.2410 |
+| Ácido cítrico | −0.0076 |
+| Azúcar residual | 0.3099 |
+| Cloruros | −0.0174 |
+| SO₂ libre | 0.0810 |
+| SO₂ total | −0.0824 |
+| Densidad | −0.3277 |
+| pH | 0.0815 |
+| Sulfatos | 0.1119 |
+| Alcohol | 0.2557 |
+| Es tinto ($r$) | 0.3221 |
 
 Como las variables están estandarizadas, el peso indica cuánto sube la calidad por cada desviación estándar.
-Lo que más sube la calidad: alcohol. Lo que más la baja: acidez volátil y acidez fija.
-Densidad, alcohol y azúcar están muy correlacionados, por eso la referencia cambia tanto esos pesos sin mover el error (MAE 0.554 → 0.555).
+Lo que más sube la calidad: alcohol y azúcar residual (a densidad fija). Lo que más la baja: densidad y acidez volátil.
 
 ### 4. Tipo: regresión logística
 Vector $\mathbf{d}' = [1, z_1, \dots, z_{11}]$:
@@ -118,34 +128,20 @@ En la app, si el usuario elige el tipo, se usa ese $r$; en "Auto" se usa el tipo
 
 ### 5. Métricas (conjunto de prueba, $m = 1300$)
 
-$$\text{MAE} = \frac{1}{m}\sum_{i=1}^{m}|\hat q_i - q_i| = 0.555 \qquad \text{MAE}_{\text{base}} = \frac{1}{m}\sum_{i=1}^{m}|6 - q_i| = 0.631$$
+$$\text{MAE} = \frac{1}{m}\sum_{i=1}^{m}|\hat q_i - q_i| = 0.465 \qquad \text{MAE}_{\text{base}} = \frac{1}{m}\sum_{i=1}^{m}|6 - q_i| = 0.631$$
 
 $$\text{Accuracy} = \frac{\#\{\text{tipo predicho} = \text{tipo real}\}}{m} = 99.3\%$$
 
 `train.js` no guarda el modelo si $\text{MAE} \ge \text{MAE}_{\text{base}}$ o si accuracy $\le 95\%$.
 
 ### 6. Gama (a partir de $\hat q$)
-La regresión comprime las predicciones hacia la media: los 198 vinos reales de calidad ≥8 se predicen entre ~5.9 y 7.0,
-así que con cortes fijos en 7/6/5 solo 2 de ellos salían Premium. Los cortes $c_t$ se calibran por cuantiles en entrenamiento:
-el % de vinos con $\hat q \ge c_t$ es igual al % con calidad real $q \ge t$ (`train.js` → `model.json → cuts`).
-
-$$c_t = \text{cuantil}_{1-p_t}(\hat q) \qquad p_t = \frac{\#\{q_i \ge t\}}{n} \qquad t \in \{7, 6, 5\}$$
 
 | Condición | Gama |
 |---|---|
-| $\hat q \ge c_7 = 6.31$ | Premium |
-| $c_6 = 5.63 \le \hat q < c_7$ | Bueno |
-| $c_5 = 5.00 \le \hat q < c_6$ | Estándar |
-| $\hat q < c_5$ | Bajo |
-
-Resultado en los 6497 vinos: vinos de calidad ≥8 en Premium 2 → 113; gama correcta 45.5% → 51.9% (53.1% sin la referencia).
-
-**Ejemplo Romanée-Conti (estimado).** DRC no publica análisis de laboratorio; el preset usa valores típicos de un Pinot Noir
-Grand Cru de Vosne-Romanée: alcohol 13.2%, pH 3.55, acidez total ~3.6 g/L H₂SO₄ (≈5.5 g/L tartárico), seco (1.5 g/L),
-SO₂ bajo (15/50 mg/L). Se usa como referencia de alta gama en el entrenamiento (calidad 10, peso 50).
-Predicción: 6.29 sin la referencia → 7.22 con ella (Premium). Peso 1 no mueve nada (6.32); peso 200 llega a 8.41 pero
-empeora el MAE de prueba a 0.594.
-El modelo solo ve química y se entrenó con Vinho Verde portugués: no puede medir terroir, añejamiento ni prestigio.
+| $\hat q \ge 7$ | Premium |
+| $6 \le \hat q < 7$ | Bueno |
+| $5 \le \hat q < 6$ | Estándar |
+| $\hat q < 5$ | Bajo |
 
 ### 7. Perfil de sabor (reglas, no modelo entrenado)
 
@@ -166,9 +162,9 @@ Notas que se agregan:
 
 ### 8. Recomendaciones para el productor
 Meta $t_j$ = promedio de la variable $j$ en los vinos de entrenamiento con $q \ge 7$ del mismo tipo (176 tintos, 854 blancos; guardado en `model.json → targets`).
-Ganancia estimada si sólo cambiara esa variable (modelo lineal):
+Ganancia estimada si sólo cambiara esa variable (con el modelo ganador):
 
-$$\Delta \hat q_j = w_j \cdot \frac{t_j - x_j}{\sigma_j}$$
+$$\Delta \hat q_j = \hat q(x \text{ con } x_j = t_j) - \hat q(x)$$
 
 Se muestra si $|t_j - x_j|/\sigma_j \ge 0.25$ y $\Delta \hat q_j \ge 0.03$, ordenadas de mayor a menor. Densidad y azúcar residual se excluyen
 (dependen del estilo y del alcohol; moverlas solas no es realista). Cada variable trae sus acciones de proceso en `src/model-core.js → ACTIONS`.

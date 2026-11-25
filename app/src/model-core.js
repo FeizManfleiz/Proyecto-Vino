@@ -7,16 +7,29 @@ function predict(model, x, red) {
   const z = x.map((v, j) => (v - model.mean[j]) / model.std[j]);
   const pRed = 1 / (1 + Math.exp(-dot([1, ...z], model.typeWeights)));
   const isRed = red ?? (pRed > 0.5 ? 1 : 0);
-  const raw = dot([1, ...z, isRed], model.qualityWeights);
-  const quality = Math.min(10, Math.max(0, raw));
-  return { quality, pRed, isRed, tier: tier(quality, model.cuts), flavor: flavor(model, x, isRed) };
+  const q = quality(model, x, isRed);
+  // Las predicciones de todos los modelos para comparar; la primera (menor MSE) es la que se usa
+  const models = (model.qualityModels ?? []).map(m => ({ name: m.name, mse: m.mse, quality: quality(model, x, isRed, m) }));
+  return { quality: q, models, pRed, isRed, tier: tier(q), flavor: flavor(model, x, isRed) };
 }
 
-// cuts = [Premium, Bueno, Estándar], calibrados en train.js; [7, 6, 5] solo si el model.json es anterior.
-function tier(q, [premium, bueno, estandar] = [7, 6, 5]) {
-  if (q >= premium) return { name: 'Premium', desc: 'Calidad alta, por encima de la gran mayoría del dataset.' };
-  if (q >= bueno) return { name: 'Bueno', desc: 'Calidad sobre el promedio.' };
-  if (q >= estandar) return { name: 'Estándar', desc: 'Calidad promedio, vino de consumo diario.' };
+const walk = (n, v) => { while (Array.isArray(n)) n = v[n[0]] <= n[1] ? n[2] : n[3]; return n; };
+
+// Calidad 0–10 con el modelo que ganó en train.js (model.quality.kind, o el modelo q que se pase); sin model.quality usa los pesos ridge.
+function quality(model, x, isRed, q = model.quality ?? { kind: 'ridge', w: model.qualityWeights }) {
+  const v = [...x, isRed];
+  let raw;
+  if (q.kind === 'ridge' || q.kind === 'linear') raw = dot([1, ...x.map((v, j) => (v - model.mean[j]) / model.std[j]), isRed], q.w);
+  else if (q.kind === 'forest') raw = q.trees.reduce((s, t) => s + walk(t, v), 0) / q.trees.length;
+  else if (q.kind === 'boost') raw = q.trees.reduce((s, t) => s + q.lr * walk(t, v), q.base);
+  else throw new Error(`modelo desconocido: ${q.kind}`);
+  return Math.min(10, Math.max(0, raw));
+}
+
+function tier(q) {
+  if (q >= 7) return { name: 'Premium', desc: 'Calidad alta, por encima de la gran mayoría del dataset.' };
+  if (q >= 6) return { name: 'Bueno', desc: 'Calidad sobre el promedio.' };
+  if (q >= 5) return { name: 'Estándar', desc: 'Calidad promedio, vino de consumo diario.' };
   return { name: 'Bajo', desc: 'Calidad por debajo del promedio; revisar defectos.' };
 }
 
@@ -40,7 +53,7 @@ function flavor(model, x, isRed) {
 }
 
 // Acciones de proceso por variable (viñedo → bodega). Densidad y azúcar residual se omiten:
-// dependen del estilo y del alcohol, y moverlas solas en el modelo lineal no es realista.
+// dependen del estilo y del alcohol, y moverlas solas en el modelo no es realista.
 const ACTIONS = {
   'volatile acidity': { steps: ['Cosechar uva sana y hacer selección de racimos en mesa', 'Usar levaduras seleccionadas y controlar la temperatura de fermentación', 'Mantener depósitos y barricas llenos y limpios para evitar oxígeno y bacterias acéticas', 'Proteger con SO₂ libre adecuado desde la recepción de la uva'] },
   alcohol: { steps: ['Cosechar con mayor madurez (°Brix más alto)', 'Reducir rendimiento por hectárea con aclareo de racimos', 'Manejar la canopia para mejorar la exposición solar', 'Asegurar una fermentación completa con nutrientes para la levadura'] },
@@ -56,13 +69,13 @@ const ACTIONS = {
 // Recomendaciones para el productor: qué variable mover hacia el perfil de los vinos ≥7 y cuánto sube la calidad según el modelo.
 function improve(model, x, isRed) {
   const target = model.targets[isRed ? 'red' : 'white'];
-  const w = model.qualityWeights;
+  const now = quality(model, x, isRed);
   return model.features
     .map((f, j) => {
       const a = ACTIONS[f];
       if (!a) return null;
       const gap = target[j] - x[j];
-      const gain = (w[j + 1] * gap) / model.std[j]; // Δcalidad del modelo lineal
+      const gain = quality(model, x.map((v, i) => (i === j ? target[j] : v)), isRed) - now; // Δcalidad moviendo solo esa variable
       if (Math.abs(gap) / model.std[j] < 0.25 || gain < 0.03) return null; // diferencia irrelevante o no mejora
       return { feature: f, current: x[j], target: target[j], gain, direction: gap > 0 ? 'Subir' : 'Bajar', steps: a.steps };
     })
@@ -78,4 +91,4 @@ function percentile(model, quality, isRed) {
   return Math.round((100 * below) / total);
 }
 
-module.exports = { predict, improve, percentile };
+module.exports = { predict, quality, walk, improve, percentile };
