@@ -20,6 +20,7 @@ const BAR_GAP = 12;
 export const BAR_SPACE = BAR_H + BAR_GAP; // aire extra al final de la pestaña para que la barra no tape nada
 // iOS: barra sobre el teclado numérico, que no trae tecla "Siguiente". Un nativeID por campo (ver KeyboardBar).
 const accessoryId = key => `analizar-teclado-${key}`;
+const INLINE_OFF = { opacity: 0 }; // ver KeyboardBar
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const SAND_RIPPLE = { color: 'rgba(211,190,145,0.24)' }; // el mismo de la barra de pestañas
 
@@ -233,6 +234,11 @@ function Section({ sec, open, onToggle, values, issues, children }) {
 // (RCTInputAccessoryComponentView.mm, didMoveToWindow). Con un nativeID compartido, los demás campos se quedaban
 // sin barra al llegar a ellos con "Siguiente". Por eso cada barra va justo después de su campo: se monta con él,
 // también en las secciones que se abren después, y no depende de qué campo está enfocado.
+// INLINE_OFF: el componente nativo también ocupa un rectángulo tinta (su backgroundColor) en la pantalla, que sólo
+// oculta con `hidden` en updateProps. Al reciclar la vista (p. ej. Cerrar sesión → Iniciar sesión: el Analizar nuevo
+// reusa las barras del anterior), updateLayoutMetrics vuelve a poner hidden = NO (UIView+ComponentViewProtocol.mm) y
+// los rectángulos se veían sobre "Ejemplos" y los campos. Con opacidad 0 no se ven ni reciben toques; la barra real
+// (su contenido, enganchado al campo) no hereda esa opacidad.
 function KeyboardBar({ a, s, flow, field }) {
   if (!ios) return null;
   const { r, bad } = a.live;
@@ -240,7 +246,7 @@ function KeyboardBar({ a, s, flow, field }) {
   const status = r ? `Calidad ${r.quality.toFixed(1)} de 10, gama ${r.tier.name}` : `Revisa ${count(bad.filter(Boolean).length, 'valor', 'valores')}`;
   const onPress = field === 'year' ? () => { Keyboard.dismiss(); s.onSave(); } : () => flow.goNext(field);
   return (
-    <InputAccessoryView nativeID={accessoryId(field)} backgroundColor={C.ink}>
+    <InputAccessoryView nativeID={accessoryId(field)} backgroundColor={C.ink} style={INLINE_OFF}>
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 6,
         borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)',
