@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useAnalysis, useSaveWine } from '../analysis';
-import { BAR_SPACE, LiveScoreBar, MobileAnalysisForm, useAnalysisFlow } from '../analysis-mobile';
+import { BAR_SPACE, KeyboardBar, LiveScoreBar, MobileAnalysisForm, useAnalysisFlow } from '../analysis-mobile';
 import { ModelNote, StatChips, Tip } from '../analysis-ui';
 import { Container, IMG, KeyboardAvoid, P, TabHeader } from '../components';
 import { markTipSeen, tipSeen } from '../history';
@@ -67,6 +67,7 @@ export default function Analizar({ wineId, onWineOpened }) {
         </Container>
       </TabScroll>
       <LiveScoreBar a={a} flow={flow} />
+      <KeyboardBar a={a} s={s} flow={flow} />
       <SimulatorSheet a={a} visible={simOpen} onClose={() => setSimOpen(false)} />
     </View>
     </KeyboardAvoid>

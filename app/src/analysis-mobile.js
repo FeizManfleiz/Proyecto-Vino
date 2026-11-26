@@ -1,7 +1,8 @@
 // Analizar en el celular: formulario por secciones, "Siguiente"/"Listo" en el teclado y la barra de calificación
 // en vivo. La web sigue usando AnalysisForm (analysis-ui.js); esto sólo lo monta la pestaña Analizar.
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, InputAccessoryView, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Easing, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { SafeAreaView as TabSafeArea } from 'react-native-screens/experimental';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaveWineSection, TYPES } from './analysis-ui';
@@ -18,7 +19,7 @@ const BAR_H = 64;
 const BAR_COMPACT_H = 48; // Android con el teclado abierto: la barra queda justo encima del teclado
 const BAR_GAP = 12;
 export const BAR_SPACE = BAR_H + BAR_GAP; // aire extra al final de la pestaña para que la barra no tape nada
-const ACCESSORY = 'analizar-teclado'; // iOS: barra sobre el teclado numérico, que no trae tecla "Siguiente"
+const KB_BAR_H = 60; // iOS: barra pegada al teclado (KeyboardBar): 6 + botón de 48 + 6
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const SAND_RIPPLE = { color: 'rgba(211,190,145,0.24)' }; // el mismo de la barra de pestañas
 
@@ -71,12 +72,13 @@ export function useAnalysisFlow({ a, scroll }) {
   };
   const setFocused = k => { focusedRef.current = k; setFocusedState(k); };
 
-  // Sube la pantalla si el campo enfocado quedó detrás del teclado (y de la barra, en Android) o bajo la hora
+  // Sube la pantalla si el campo enfocado quedó detrás del teclado y de la barra que va encima de él (la calificación
+  // compacta en Android, KeyboardBar en iOS) o bajo la hora
   const reveal = (key, delay) => setTimeout(() => {
     const node = inputs.current[key];
     if (!node || kbTop.current == null || focusedRef.current !== key) return;
     node.measureInWindow((x, y, w, h) => {
-      const limit = kbTop.current - (android ? BAR_COMPACT_H + BAR_GAP : 0) - 32; // 32: el mensaje bajo el campo
+      const limit = kbTop.current - (android ? BAR_COMPACT_H + BAR_GAP : KB_BAR_H) - 32; // 32: el mensaje bajo el campo
       const dy = y + h > limit ? y + h - limit : y < top + 16 ? y - top - 16 : 0;
       if (dy) scroll.current?.scrollTo({ y: Math.max(0, scrollY.current + dy), animated: !reduced });
     });
@@ -177,7 +179,6 @@ function NumberField({ label, value, issue, focused, last, ref, ...props }) {
         returnKeyType={last ? 'done' : 'next'}
         returnKeyLabel={last ? 'Listo' : 'Siguiente'}
         submitBehavior={last ? 'blurAndSubmit' : 'submit'}
-        inputAccessoryViewID={ios ? ACCESSORY : undefined}
         selectTextOnFocus
         accessibilityLabel={issue ? `${label}. ${issue.text}` : label}
         style={{
@@ -223,17 +224,27 @@ function Section({ sec, open, onToggle, values, issues, children }) {
   );
 }
 
-// iOS: barra sobre el teclado con la calificación en vivo y "Siguiente" / "Listo"
-function KeyboardBar({ a, s, flow }) {
-  if (!ios) return null;
-  const { r, bad } = a.live;
+// iOS: barra pegada encima del teclado con la calificación en vivo y "Siguiente" / "Listo" (el teclado numérico no trae
+// tecla para pasar al siguiente campo). KeyboardStickyView (react-native-keyboard-controller, en Expo Go) la mueve con
+// el teclado cuadro a cuadro; reemplaza a InputAccessoryView, obsoleto en React Native.
+// Sólo aparece con un campo numérico o el año; si se cierra el teclado, sigue con el último campo mientras baja.
+export function KeyboardBar({ a, s, flow }) {
+  const shownKey = useRef(null);
   const k = flow.focused;
-  const last = k === 'year' || k === LAST;
+  const wants = typeof k === 'number' || k === 'year';
+  useEffect(() => { if (wants) shownKey.current = k; });
+  if (!ios) return null;
+  const key = wants ? k : k == null && flow.keyboard ? shownKey.current : null;
+  const hidden = key == null;
+  const { r, bad } = a.live;
+  const last = key === 'year' || key === LAST;
   const status = r ? `Calidad ${r.quality.toFixed(1)} de 10, gama ${r.tier.name}` : `Revisa ${count(bad.filter(Boolean).length, 'valor', 'valores')}`;
-  const onPress = k === 'year' ? () => { Keyboard.dismiss(); s.onSave(); } : () => flow.goNext(k);
+  const onPress = key === 'year' ? () => { Keyboard.dismiss(); s.onSave(); } : () => flow.goNext(key);
   return (
-    <InputAccessoryView nativeID={ACCESSORY} backgroundColor={C.ink}>
-      <View style={{
+    // Su borde de abajo es el de la ventana: abierto el teclado, queda justo encima de él
+    <KeyboardStickyView style={{ position: 'absolute', left: 0, right: 0, bottom: 0, pointerEvents: hidden ? 'none' : 'box-none' }}>
+      <View aria-hidden={hidden} style={{
+        opacity: hidden ? 0 : 1, minHeight: KB_BAR_H, backgroundColor: C.ink,
         flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 6,
         borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)',
       }}>
@@ -249,7 +260,7 @@ function KeyboardBar({ a, s, flow }) {
         </View>
         <Button tone="sand" label={last ? 'Listo' : 'Siguiente'} onPress={onPress} />
       </View>
-    </InputAccessoryView>
+    </KeyboardStickyView>
   );
 }
 
@@ -294,8 +305,7 @@ export function MobileAnalysisForm({ a, s, pad, flow }) {
 
       <SaveWineSection s={s} wide={false}
         nameProps={{ ...flow.fieldProps('name'), returnKeyType: 'next', returnKeyLabel: 'Siguiente', submitBehavior: 'submit', onSubmitEditing: () => flow.focusKey('year') }}
-        yearProps={{ ...flow.fieldProps('year'), returnKeyType: 'done', returnKeyLabel: 'Listo', inputAccessoryViewID: ios ? ACCESSORY : undefined }} />
-      <KeyboardBar a={a} s={s} flow={flow} />
+        yearProps={{ ...flow.fieldProps('year'), returnKeyType: 'done', returnKeyLabel: 'Listo' }} />
     </Card>
   );
 }
