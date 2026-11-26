@@ -21,6 +21,11 @@ export async function removeWine(email, id) {
   return list;
 }
 
+// Orden de Mis vinos en el celular ('date' o 'quality'); se recuerda en el dispositivo
+const SORT = 'vino.misVinosOrden';
+export const loadSort = async () => ((await AsyncStorage.getItem(SORT)) === 'quality' ? 'quality' : 'date');
+export const saveSort = by => AsyncStorage.setItem(SORT, by);
+
 const TIP = 'vino.tipSeen';
 export const tipSeen = async () => (await AsyncStorage.getItem(TIP)) === '1';
 export const markTipSeen = () => AsyncStorage.setItem(TIP, '1');
