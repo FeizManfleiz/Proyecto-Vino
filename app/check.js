@@ -62,4 +62,16 @@ Object.entries(VEIL).forEach(([name, veil]) => [false, true].forEach(clipped => 
   layers.forEach(l => assert.ok(l.type === 'radial' || (l.type === 'linear' && ['to bottom', 'to right'].includes(l.dir)), `${name}: capa ${l.type} ${l.dir}`));
 })));
 
+// Mis vinos del celular: por fecha el más reciente primero; por calificación la más alta y, si empatan, el más reciente
+const { sortWines } = require('./src/mobile-logic.js');
+const ws = [
+  { id: 'a', quality: 6, date: '2026-01-02T10:00:00.000Z' },
+  { id: 'b', quality: 7.5, date: '2026-01-01T10:00:00.000Z' },
+  { id: 'c', quality: 6, date: '2026-01-03T10:00:00.000Z' },
+];
+assert.deepStrictEqual(sortWines(ws, 'date').map(w => w.id), ['c', 'a', 'b']);
+assert.deepStrictEqual(sortWines(ws, 'quality').map(w => w.id), ['b', 'c', 'a'], 'empate de calificación: el más reciente primero');
+assert.deepStrictEqual(ws.map(w => w.id), ['a', 'b', 'c'], 'sortWines no cambia la lista original');
+assert.deepStrictEqual(sortWines([], 'quality'), []);
+
 console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2), 'RC', rc.quality.toFixed(2), rc.tier.name, '· rangos', rows.length, 'vinos');
