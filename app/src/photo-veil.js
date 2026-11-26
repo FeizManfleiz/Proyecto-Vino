@@ -23,6 +23,12 @@ export const VEIL = {
     v: [[0, 0.84], [0.25, 0.66], [0.5, 0.56], [0.8, 0.78], [1, 1]],
     h: [[0, 0.84], [0.5, 0.64], [1, 0.15]],
   },
+  // Viñedo al atardecer (Mejorar): el cielo claro arriba y el sol a la derecha; más velo arriba (hora) y a la izquierda
+  // (texto), y el sol queda a la vista
+  sun: {
+    v: [[0, 0.84], [0.25, 0.6], [0.5, 0.42], [0.8, 0.72], [1, 1]],
+    h: [[0, 0.86], [0.45, 0.62], [0.9, 0]],
+  },
   logo: {
     v: [[0, 0.72], [0.3, 0.5], [0.7, 0.5], [1, 0.88]],
     radial: [[0, 0.9], [0.5, 0.74], [1, 0.25]],

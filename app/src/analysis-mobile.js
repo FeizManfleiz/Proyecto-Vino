@@ -2,10 +2,10 @@
 // en vivo. La web sigue usando AnalysisForm (analysis-ui.js); esto sólo lo monta la pestaña Analizar.
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, InputAccessoryView, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView as TabSafeArea } from 'react-native-screens/experimental';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaveWineSection, TYPES } from './analysis-ui';
 import { Button, Card, Icon, Kicker, RIPPLE, ScoreBar, Segmented, TIER_STYLE } from './components';
+import { TabDock } from './mobile-ui';
 import model from './model.json';
 import { useReducedMotion } from './motion';
 import { C, F, R } from './theme';
@@ -322,12 +322,9 @@ export function LiveScoreBar({ a, flow }) {
   const label = r
     ? `Calidad estimada ${r.quality.toFixed(1)} de 10, gama ${r.tier.name}${nWarn ? `, ${count(nWarn, 'valor', 'valores')} fuera de rango` : ''}. Toca para ver el resultado completo.`
     : `${count(nBad, 'valor', 'valores')} por revisar. Toca para ir al primero.`;
-  // iOS: la pantalla sigue por debajo de la barra de pestañas y el área segura de la pestaña la incluye.
-  // Android: la pantalla ya termina encima de la barra (y del teclado, por KeyboardAvoid).
-  const [Dock, dockProps] = ios ? [TabSafeArea, { edges: { bottom: true }, insetType: 'all' }] : [View, {}];
 
   return (
-    <Dock {...dockProps} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }}>
+    <TabDock>
       <Animated.View
         aria-hidden={hidden}
         style={{
@@ -377,6 +374,6 @@ export function LiveScoreBar({ a, flow }) {
           )}
         </Pressable>
       </Animated.View>
-    </Dock>
+    </TabDock>
   );
 }

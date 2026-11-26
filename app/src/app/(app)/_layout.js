@@ -1,5 +1,6 @@
 import { NativeTabs } from 'expo-router/native-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AnalysisProvider } from '@/analysis';
 import { useSession } from '@/session';
 import { C, F } from '@/theme';
 import { WinesProvider } from '@/wines';
@@ -7,6 +8,7 @@ import { WinesProvider } from '@/wines';
 // Pestañas del celular (la web no las monta: ver el guard en src/app/_layout.js).
 // Atrás recorre las pestañas visitadas y luego sale; en Android la barra pone sola el área segura de abajo.
 // GestureHandlerRootView: los gestos de Gesture Handler (deslizar filas, arrastrar hojas) sólo funcionan debajo de él.
+// AnalysisProvider: Analizar y Mejorar comparten el mismo análisis (una sola fuente de verdad).
 export default function AppTabs() {
   const { user } = useSession();
   // Al cerrar sesión el guard quita estas pantallas; mientras tanto no se pinta nada que lea `user`
@@ -14,6 +16,7 @@ export default function AppTabs() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <WinesProvider email={user.email}>
+    <AnalysisProvider>
       <NativeTabs
         backBehavior="history"
         labelVisibilityMode="labeled"
@@ -31,6 +34,10 @@ export default function AppTabs() {
           <NativeTabs.Trigger.Icon sf="flask" md="science" />
           <NativeTabs.Trigger.Label>Analizar</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="mejorar">
+          <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" md="trending_up" />
+          <NativeTabs.Trigger.Label>Mejorar</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
         <NativeTabs.Trigger name="mis-vinos">
           <NativeTabs.Trigger.Icon sf="wineglass" md="wine_bar" />
           <NativeTabs.Trigger.Label>Mis vinos</NativeTabs.Trigger.Label>
@@ -44,6 +51,7 @@ export default function AppTabs() {
           <NativeTabs.Trigger.Label>Cuenta</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       </NativeTabs>
+    </AnalysisProvider>
     </WinesProvider>
     </GestureHandlerRootView>
   );

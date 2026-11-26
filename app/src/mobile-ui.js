@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView as TabSafeArea } from 'react-native-screens/experimental';
 import { useReducedMotion } from './motion';
 import { C } from './theme';
 
@@ -37,7 +38,7 @@ export function TabScroll({ header, children, bottomExtra = 0, scrollRef, onScro
     else Animated.timing(scrim, { toValue: cream ? 1 : 0, duration: 150, useNativeDriver: true }).start();
   };
 
-  // Las cuatro pestañas siguen montadas: la que recibe el foco vuelve a poner su estilo
+  // Las pestañas visitadas siguen montadas: la que recibe el foco vuelve a poner su estilo
   useFocusEffect(useCallback(() => setBarStyle(onCream.current), []));
   // Al cerrar sesión se desmontan, y las pantallas de acceso esperan texto claro
   useEffect(() => () => setBarStyle(false), []);
@@ -68,4 +69,14 @@ export function TabScroll({ header, children, bottomExtra = 0, scrollRef, onScro
       />
     </View>
   );
+}
+
+// Capa fija abajo de una pestaña, justo encima de la barra de pestañas: la barra de calificación de Analizar y el aviso
+// de Mejorar. Los toques pasan a la pantalla salvo sobre su contenido.
+// iOS: la pantalla sigue por debajo de la barra de pestañas y el área segura de la pestaña la incluye.
+// Android: la pantalla ya termina encima de la barra (y del teclado, por KeyboardAvoid).
+const DOCK = { position: 'absolute', left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' };
+export function TabDock({ children }) {
+  if (Platform.OS === 'ios') return <TabSafeArea edges={{ bottom: true }} insetType="all" style={DOCK}>{children}</TabSafeArea>;
+  return <View style={DOCK}>{children}</View>;
 }

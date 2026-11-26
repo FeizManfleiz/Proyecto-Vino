@@ -27,7 +27,7 @@ export default function RootLayout() {
 // Rutas:
 //  /                 celular: redirige a Iniciar sesión o a Analizar · web: landing o dashboard (index.web.js)
 //  /iniciar-sesion   /crear-cuenta        sólo sin sesión
-//  /analizar  /mis-vinos  /guias  /cuenta  pestañas, sólo con sesión y en el celular
+//  /analizar  /mejorar  /mis-vinos  /guias  /cuenta  pestañas, sólo con sesión y en el celular
 function RootStack() {
   const { user, loading } = useSession();
   const [fontsLoaded, fontError] = useFonts({ Oswald_500Medium, Oswald_700Bold, Montserrat_400Regular, Montserrat_500Medium, Montserrat_600SemiBold });

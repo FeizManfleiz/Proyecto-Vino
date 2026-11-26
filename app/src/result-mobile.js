@@ -1,21 +1,16 @@
 // Resultado en la pestaña Analizar del celular: un resumen vino arriba (calificación, gama y barra), el detalle en una
-// tarjeta clara debajo, "Cómo mejorar este vino" y el simulador en una hoja que sube desde abajo.
-// La web sigue con ResultCard/RecsCard de analysis-ui.js.
-import { AccessibilityInfo, Platform, Pressable, Text, View } from 'react-native';
-import Animated, { cubicBezier } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { GUIDES, SCALES } from './analysis-ui';
-import { Button, Card, Faded, H, Icon, IMG, Kicker, P, RIPPLE, ScoreBar, TIER_STYLE } from './components';
+// tarjeta clara debajo y el acceso corto a la pestaña Mejorar (las recomendaciones y el simulador viven ahí:
+// improve-mobile.js). La web sigue con ResultCard/RecsCard de analysis-ui.js.
+import { Platform, Pressable, Text, View } from 'react-native';
+import { SCALES } from './analysis-ui';
+import { Button, Card, Icon, Kicker, P, RIPPLE, ScoreBar, TIER_STYLE } from './components';
 import model from './model.json';
-import { percentile } from './model-core';
-import { useReducedMotion } from './motion';
-import { fmt, reportBody } from './pdf';
-import { Sheet } from './sheet';
+import { potentialGain } from './mobile-logic';
+import { reportBody } from './pdf';
 import { C, F, R } from './theme';
-import { LABELS, shortLabel, unit } from './wine-data';
+import { LABELS } from './wine-data';
 
 const ios = Platform.OS === 'ios';
-const SAND_RIPPLE = { color: 'rgba(211,190,145,0.24)' };
 const REPORT = 'Reporte de predicción';
 const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const kind = r => (r.isRed ? 'tintos' : 'blancos');
@@ -114,190 +109,32 @@ export function ResultDetail({ a, pdfBusy, onPdf }) {
   );
 }
 
-// Una recomendación para leer: ganancia, de cuánto a cuánto y los pasos. Los ajustes se eligen en el simulador.
-function Rec({ k, on }) {
-  return (
-    <View style={{ borderTopWidth: 1, borderTopColor: C.line, paddingVertical: 16, gap: 4 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Text style={{ flex: 1, fontFamily: F.bodySb, fontSize: 17, color: C.ink }}>{k.direction}: {shortLabel(k.feature)}</Text>
-        <Text style={{ fontFamily: F.display, fontSize: 24, color: C.olive }}>+{k.gain.toFixed(2)}</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Text style={{ fontFamily: F.bodyMd, fontSize: 14, color: C.wine }}>
-          Actual {fmt(k.current)} → meta {fmt(k.target)} {unit(k.feature)}
-        </Text>
-        {on && (
-          <View style={{ backgroundColor: C.olive, borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 2 }}>
-            <Text style={{ fontFamily: F.bodySb, fontSize: 12, color: C.white }}>Simulando</Text>
-          </View>
-        )}
-      </View>
-      {k.steps.map(st => (
-        <View key={st} style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-          <Text style={{ color: C.olive, fontFamily: F.bodySb }}>•</Text>
-          <Text style={{ flex: 1, fontFamily: F.body, fontSize: 14, lineHeight: 21, color: C.ink }}>{st}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-// "Cómo mejorar este vino": el botón del simulador arriba y las recomendaciones debajo
-export function ImproveCard({ a, pdfBusy, onPdf, onOpenSim }) {
+// Acceso corto a Mejorar, donde antes estaba "Cómo mejorar este vino". Sin resultado no aparece: el resumen ya dice
+// qué valores revisar.
+export function ImproveLink({ a, onPress }) {
   const { r, recs } = a.live;
-  const { sim, simulated } = a;
   if (!r) return null;
-  const total = recs.reduce((s, k) => s + k.gain, 0).toFixed(2);
-  const n = recs.filter(k => sim.has(k.feature)).length;
-  const status = simulated
-    ? `Simulando ${count(n, 'ajuste', 'ajustes')}: ${r.quality.toFixed(1)} → ${simulated.r.quality.toFixed(1)}`
-    : `Hasta +${total} pts si aplicas todo`;
+  const n = recs.filter(k => a.sim.has(k.feature)).length;
+  const [title, sub] = !recs.length
+    ? ['Ya está cerca de la gama alta', 'Ver en Mejorar']
+    : a.simulated
+      ? [`Simulando ${count(n, 'ajuste', 'ajustes')}: ${r.quality.toFixed(1)} → ${a.simulated.r.quality.toFixed(1)}`, 'Ver en Mejorar']
+      : [`Hasta +${potentialGain(recs).toFixed(2)} pts`, 'Ver cómo mejorarlo'];
   return (
-    <Faded source={IMG.vineyardSun} color={C.white} opacity={0.94} style={{ borderRadius: R.lg, padding: 20, borderWidth: 1, borderColor: C.line }}>
-      <Kicker color={C.olive}>PARA EL PRODUCTOR</Kicker>
-      <H size={28}>Cómo mejorar este vino.</H>
-      <P size={15} color={C.muted} style={{ marginTop: 6, marginBottom: 16 }}>
-        Comparado con el promedio de los {kind(r)} con calidad ≥ 7.
-      </P>
-
-      {recs.length === 0 ? (
-        <P size={16} style={{ marginBottom: 16 }}>Este vino ya está cerca del perfil de los vinos de calidad alta. No hay ajustes prioritarios.</P>
-      ) : (
-        <>
-          <Pressable onPress={onOpenSim} android_ripple={SAND_RIPPLE} accessibilityRole="button"
-            accessibilityLabel={`Simulador de mejoras. ${status}`} accessibilityHint="Abre el simulador"
-            style={({ pressed }) => ({
-              minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 8,
-              borderRadius: R.md, overflow: 'hidden', backgroundColor: C.ink, opacity: ios && pressed ? 0.88 : 1,
-            })}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(211,190,145,0.16)', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="flask" color={C.sand} />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ fontFamily: F.bodySb, fontSize: 16, color: C.white }}>Simulador de mejoras</Text>
-              <Text style={{ fontFamily: F.bodyMd, fontSize: 14, color: simulated ? C.sand : C.sage }}>{status}</Text>
-            </View>
-            <Icon name="chevron" size={18} color={C.sand} />
-          </Pressable>
-          {recs.map(k => <Rec key={k.feature} k={k} on={sim.has(k.feature)} />)}
-        </>
-      )}
-
-      <Button kind="outline" tone="wine" icon="share" label="Guía completa para el productor (PDF)" style={{ marginTop: 8 }}
-        spinner loadingLabel="Generando PDF…" loading={pdfBusy === GUIDES[0].title} disabled={!!pdfBusy && pdfBusy !== GUIDES[0].title}
-        onPress={() => onPdf(GUIDES[0].title, GUIDES[0].body)} />
-    </Faded>
-  );
-}
-
-// Barra de dos tonos: la calificación actual en salvia y, encima del arena, lo que se ganaría.
-// Sólo el relleno cambia de ancho (absoluto y sin hijos), con una transición corta al marcar un ajuste.
-function CompareBar({ now, next, reduced }) {
-  const fill = v => ({
-    position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 4, width: `${Math.max(0, Math.min(100, v * 10))}%`,
-    transitionProperty: 'width', transitionDuration: reduced ? 0 : 200, transitionTimingFunction: cubicBezier(0.23, 1, 0.32, 1),
-  });
-  return (
-    <View style={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.15)', overflow: 'hidden', marginTop: 12 }}>
-      <Animated.View style={[fill(next ?? now), { backgroundColor: C.sand }]} />
-      <Animated.View style={[fill(now), { backgroundColor: C.sage }]} />
-    </View>
-  );
-}
-
-// Un ajuste del simulador: toda la fila es la casilla
-function SimOption({ k, on, first, onPress }) {
-  const u = unit(k.feature);
-  return (
-    <Pressable onPress={onPress} android_ripple={RIPPLE} accessibilityRole="checkbox" accessibilityState={{ checked: on }}
-      accessibilityLabel={`${k.direction} ${shortLabel(k.feature)}, de ${fmt(k.current)} a ${fmt(k.target)} ${u}, más ${k.gain.toFixed(2)} puntos`}
+    <Pressable onPress={onPress} android_ripple={RIPPLE} accessibilityRole="button" accessibilityLabel={`${title.replace('+', 'más ')}. ${sub}`}
+      accessibilityHint="Abre la pestaña Mejorar"
       style={({ pressed }) => ({
-        minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 4,
-        borderTopWidth: first ? 0 : 1, borderTopColor: C.line, backgroundColor: ios && pressed ? C.cream : 'transparent',
+        minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14,
+        borderRadius: R.lg, overflow: 'hidden', borderWidth: 1, borderColor: C.line, backgroundColor: ios && pressed ? C.cream : C.white,
       })}>
-      <View style={{
-        width: 26, height: 26, borderRadius: 7, borderWidth: 2, borderColor: C.olive, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: on ? C.olive : C.white,
-      }}>
-        {on && <Icon name="check" size={16} color={C.white} />}
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: `${C.olive}1a`, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="trend" color={C.olive} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontFamily: F.bodySb, fontSize: 16, color: C.ink }}>{k.direction}: {shortLabel(k.feature)}</Text>
-        <Text style={{ fontFamily: F.bodyMd, fontSize: 13, color: C.muted }}>{fmt(k.current)} → {fmt(k.target)} {u}</Text>
+        <Text style={{ fontFamily: F.display, fontSize: 22, lineHeight: 28, color: C.olive, fontVariant: ['tabular-nums'] }}>{title}</Text>
+        <Text style={{ fontFamily: F.bodySb, fontSize: 15, color: C.ink }}>{sub}</Text>
       </View>
-      <Text style={{ fontFamily: F.display, fontSize: 22, color: C.olive }}>+{k.gain.toFixed(2)}</Text>
+      <Icon name="chevron" size={18} color={C.muted} />
     </Pressable>
-  );
-}
-
-// El simulador: elegir ajustes, ver la calificación que tendría el vino y pasarlos al formulario
-export function SimulatorSheet({ a, visible, onClose }) {
-  const reduced = useReducedMotion();
-  const { r, recs } = a.live;
-  const { sim, simulated } = a;
-  const n = recs.filter(k => sim.has(k.feature)).length;
-
-  const apply = () => {
-    a.applySim();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); // acompaña al cambio visible, nunca lo sustituye
-    AccessibilityInfo.announceForAccessibility('Ajustes aplicados al formulario');
-    onClose();
-  };
-
-  let body = null;
-  if (r) {
-    const q = r.quality.toFixed(1);
-    const sq = simulated?.r.quality.toFixed(1);
-    const summary = simulated
-      ? `Actual ${q}, con ajustes ${sq}, más ${(simulated.r.quality - r.quality).toFixed(2)} puntos, gama ${simulated.r.tier.name}`
-      : `Actual ${q}. Elige uno o varios ajustes.`;
-    body = (
-      <>
-        <View accessible accessibilityLabel={summary} accessibilityLiveRegion="polite"
-          style={{ backgroundColor: C.ink, borderRadius: R.md, padding: 18, marginTop: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14 }}>
-            <View>
-              <Text style={{ fontFamily: F.bodySb, fontSize: 12, color: C.sage }}>Actual</Text>
-              <Text style={{ fontFamily: F.display, fontSize: 36, lineHeight: 44, color: C.sage, fontVariant: ['tabular-nums'] }}>{q}</Text>
-            </View>
-            <View style={{ marginBottom: 12 }}><Icon name="chevron" color={C.sand} /></View>
-            <View>
-              <Text style={{ fontFamily: F.bodySb, fontSize: 12, color: C.sand }}>Con ajustes</Text>
-              {/* Sin ajustes elegidos queda igual que la actual, atenuada */}
-              <Text style={{ fontFamily: F.display, fontSize: 48, lineHeight: 56, color: sq ? C.white : 'rgba(255,255,255,0.35)', fontVariant: ['tabular-nums'] }}>{sq ?? q}</Text>
-            </View>
-            {simulated && (
-              <Text style={{ flexShrink: 1, fontFamily: F.bodySb, fontSize: 16, color: C.sand, marginBottom: 10 }}>
-                +{(simulated.r.quality - r.quality).toFixed(2)}
-              </Text>
-            )}
-          </View>
-          <CompareBar now={r.quality} next={simulated?.r.quality} reduced={reduced} />
-          <Text style={{ fontFamily: F.bodyMd, fontSize: 14, color: C.sand, marginTop: 10 }}>
-            {simulated
-              ? `Gama ${simulated.r.tier.name} · mejor que el ${percentile(model, simulated.r.quality, r.isRed)}%`
-              : 'Elige uno o varios ajustes'}
-          </Text>
-        </View>
-        <P size={14} color={C.muted} style={{ marginTop: 16, marginBottom: 4 }}>
-          Marca los ajustes que harías; la calificación se recalcula al momento.
-        </P>
-        {recs.map((k, i) => (
-          <SimOption key={k.feature} k={k} on={sim.has(k.feature)} first={i === 0} onPress={() => a.toggleSim(k.feature)} />
-        ))}
-      </>
-    );
-  }
-
-  return (
-    <Sheet visible={visible && !!r} onClose={onClose} title="Simulador de mejoras" closeLabel="Cerrar simulador"
-      footer={(
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button kind="outline" tone="wine" label="Limpiar" onPress={a.clearSim} disabled={!n} />
-          <Button icon="check" label="Aplicar al formulario" onPress={apply} disabled={!n} style={{ flex: 1, paddingHorizontal: 16 }} />
-        </View>
-      )}>
-      {body}
-    </Sheet>
   );
 }

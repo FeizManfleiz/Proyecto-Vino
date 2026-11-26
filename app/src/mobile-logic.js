@@ -16,3 +16,14 @@ export function pdfFileName(title, date) {
   const two = n => String(n).padStart(2, '0');
   return `${clean} ${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}.pdf`;
 }
+
+// Nombre del vino que se está mejorando (encabezado de Mejorar). `base`: el ejemplo o el vino guardado que se cargó
+// ({ kind: 'example' | 'wine', name }), o null si los valores se escribieron a mano; `edited`: se cambió algo después.
+export function wineTitle(base, edited) {
+  if (!base) return 'Tu análisis';
+  const name = base.kind === 'example' ? `Ejemplo «${base.name}»` : base.name;
+  return edited ? `${name} · con cambios` : name;
+}
+
+// Lo que subiría la calificación aplicando todas las recomendaciones ("Hasta +X pts")
+export const potentialGain = recs => recs.reduce((s, k) => s + k.gain, 0);

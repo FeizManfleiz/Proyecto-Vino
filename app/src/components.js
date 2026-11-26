@@ -35,6 +35,8 @@ const ICONS = {
   x: 'M18 6L6 18M6 6l12 12',
   bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z',
   share: 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13',
+  trend: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', // pestaña Mejorar: subir la calificación
+  sliders: 'M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4', // simulador de ajustes
 };
 
 // Respuesta al toque en Android (la web usa los estados hover de cada control y no cambia)
@@ -176,6 +178,7 @@ export const IMG = {
 const FRAME = new Map([
   [IMG.vineyardGold, { focusY: 0.6 }], // el sol y las hileras
   [IMG.vineyardAerial, { veil: VEIL.aerial }],
+  [IMG.vineyardSun, { veil: VEIL.sun }],
   [IMG.bottles, { focusY: 0.35 }], // las repisas con etiquetas
 ]);
 
