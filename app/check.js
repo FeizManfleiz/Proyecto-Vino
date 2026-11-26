@@ -81,4 +81,16 @@ assert.strictEqual(pdfFileName('Reporte de predicción', new Date(2026, 10, 5)),
 assert.strictEqual(pdfFileName('a/b\\c*d?"e"<f>|g'), 'a b c d e f g.pdf');
 assert.strictEqual(pdfFileName(' : '), 'Documento.pdf');
 
+// Pestaña Mejorar: el nombre del vino que se está mejorando y lo que se ganaría aplicando todo
+const { wineTitle, potentialGain } = require('./src/mobile-logic.js');
+assert.strictEqual(wineTitle(null, false), 'Tu análisis', 'valores escritos a mano');
+assert.strictEqual(wineTitle(null, true), 'Tu análisis');
+assert.strictEqual(wineTitle({ kind: 'example', name: 'Tinto' }, false), 'Ejemplo «Tinto»');
+assert.strictEqual(wineTitle({ kind: 'example', name: 'Tinto' }, true), 'Ejemplo «Tinto» · con cambios');
+assert.strictEqual(wineTitle({ kind: 'wine', name: 'Merlot · 2021' }, false), 'Merlot · 2021');
+assert.strictEqual(wineTitle({ kind: 'wine', name: 'Merlot · 2021' }, true), 'Merlot · 2021 · con cambios');
+assert.strictEqual(potentialGain([]), 0);
+assert.strictEqual(potentialGain([{ gain: 0.5 }, { gain: 0.25 }]), 0.75);
+assert.ok(Math.abs(potentialGain(recs) - recs.reduce((s, k) => s + k.gain, 0)) < 1e-12, 'la misma suma que mostraba la tarjeta de mejoras');
+
 console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2), 'RC', rc.quality.toFixed(2), rc.tier.name, '· rangos', rows.length, 'vinos');

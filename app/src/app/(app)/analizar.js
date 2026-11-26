@@ -1,9 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Analizar from '@/screens/Analizar';
 
-// ?vino=<id> llega desde Mis vinos para abrir un vino guardado; se limpia al cargarlo
+// ?vino=<id> llega desde Mis vinos para abrir un vino guardado; ?ver=resultado, desde "Ver en Analizar" de Mejorar.
+// Los dos se limpian en cuanto se usan.
 export default function AnalizarRoute() {
-  const { vino } = useLocalSearchParams();
+  const { vino, ver } = useLocalSearchParams();
   const router = useRouter();
-  return <Analizar wineId={vino} onWineOpened={() => router.setParams({ vino: undefined })} />;
+  return (
+    <Analizar wineId={vino} onWineOpened={() => router.setParams({ vino: undefined })}
+      showResult={ver === 'resultado'} onResultShown={() => router.setParams({ ver: undefined })} />
+  );
 }

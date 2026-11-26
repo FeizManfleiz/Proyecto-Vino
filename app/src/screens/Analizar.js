@@ -1,28 +1,29 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
-import { useAnalysis, useSaveWine } from '../analysis';
+import { useRouter } from 'expo-router';
+import { useSaveWine, useSharedAnalysis } from '../analysis';
 import { BAR_SPACE, LiveScoreBar, MobileAnalysisForm, useAnalysisFlow } from '../analysis-mobile';
 import { ModelNote, StatChips, Tip } from '../analysis-ui';
 import { Container, IMG, KeyboardAvoid, P, TabHeader } from '../components';
 import { markTipSeen, tipSeen } from '../history';
 import { TabScroll } from '../mobile-ui';
 import { usePdf } from '../pdf';
-import { ImproveCard, ResultDetail, ResultSummary, SimulatorSheet } from '../result-mobile';
+import { ImproveLink, ResultDetail, ResultSummary } from '../result-mobile';
 import { useSession } from '../session';
 import { C } from '../theme';
-import { useWines } from '../wines';
+import { useWines, wineLabel } from '../wines';
 
-// Pestaña Analizar (celular): el formulario por secciones, el resultado (resumen + detalle) y cómo mejorar el vino,
-// con la calificación en vivo en una barra encima de las pestañas y el simulador en una hoja.
-// `wineId` llega desde Mis vinos para cargar un vino guardado.
-export default function Analizar({ wineId, onWineOpened }) {
+// Pestaña Analizar (celular): el formulario por secciones, el resultado (resumen + detalle) y un acceso a Mejorar,
+// con la calificación en vivo en una barra encima de las pestañas. El análisis es el mismo que lee Mejorar.
+// `wineId` llega desde Mis vinos para cargar un vino guardado; `showResult`, desde "Ver en Analizar" de Mejorar.
+export default function Analizar({ wineId, onWineOpened, showResult, onResultShown }) {
+  const router = useRouter();
   const { user } = useSession();
   const { history, save, best } = useWines();
-  const a = useAnalysis();
+  const a = useSharedAnalysis();
   const s = useSaveWine({ live: a.live, history, save });
   const [pdfBusy, pdf] = usePdf();
   const [showTip, setShowTip] = useState(false);
-  const [simOpen, setSimOpen] = useState(false);
   const scroll = useRef(null);
   const flow = useAnalysisFlow({ a, scroll });
   const { width } = useWindowDimensions();
@@ -34,9 +35,9 @@ export default function Analizar({ wineId, onWineOpened }) {
   }, []);
   const closeTip = () => { setShowTip(false); markTipSeen(); };
 
-  // Carga el vino y regresa arriba para ver su resultado
+  // Carga el vino (con su nombre, para el encabezado de Mejorar) y regresa arriba para ver su resultado
   const openWine = useEffectEvent(w => {
-    a.loadValues(w.values);
+    a.loadValues(w.values, null, wineLabel(w));
     scroll.current?.scrollTo({ y: 0, animated: false });
     onWineOpened();
   });
@@ -44,6 +45,15 @@ export default function Analizar({ wineId, onWineOpened }) {
     const w = wineId && history.find(h => h.id === wineId);
     if (w) openWine(w);
   }, [wineId, history]);
+
+  // Después de "Aplicar al formulario" en Mejorar: baja al resultado nuevo
+  const revealResult = useEffectEvent(() => {
+    flow.scrollToResult();
+    onResultShown();
+  });
+  useEffect(() => {
+    if (showResult) revealResult();
+  }, [showResult]);
 
   return (
     <KeyboardAvoid>
@@ -62,12 +72,11 @@ export default function Analizar({ wineId, onWineOpened }) {
             <ResultSummary a={a} onFix={flow.goToFirstIssue} />
             <ResultDetail a={a} pdfBusy={pdfBusy} onPdf={pdf} />
           </View>
-          <ImproveCard a={a} pdfBusy={pdfBusy} onPdf={pdf} onOpenSim={() => setSimOpen(true)} />
+          <ImproveLink a={a} onPress={() => router.navigate('/mejorar')} />
           <ModelNote />
         </Container>
       </TabScroll>
       <LiveScoreBar a={a} flow={flow} />
-      <SimulatorSheet a={a} visible={simOpen} onClose={() => setSimOpen(false)} />
     </View>
     </KeyboardAvoid>
   );

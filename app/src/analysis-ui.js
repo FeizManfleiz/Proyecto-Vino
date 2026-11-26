@@ -39,7 +39,7 @@ function Meter({ label, value }) {
 // Celular: los chips pasan sobre la foto del encabezado (p. ej. las etiquetas claras de Mis vinos), así que llevan
 // fondo tinta casi sólido (contraste ≥ 4.5:1 sobre el píxel más claro) y un filo claro para verse sobre el tinta liso.
 // La web conserva su chip translúcido.
-const CHIP = web
+export const CHIP = web
   ? { backgroundColor: 'rgba(255,255,255,0.1)' }
   : { backgroundColor: `${C.ink}e6`, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' }; // e6 = 90 %
 

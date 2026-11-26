@@ -2,10 +2,10 @@
 // en vivo. La web sigue usando AnalysisForm (analysis-ui.js); esto sólo lo monta la pestaña Analizar.
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, InputAccessoryView, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView as TabSafeArea } from 'react-native-screens/experimental';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaveWineSection, TYPES } from './analysis-ui';
 import { Button, Card, Icon, Kicker, RIPPLE, ScoreBar, Segmented, TIER_STYLE } from './components';
+import { TabDock } from './mobile-ui';
 import model from './model.json';
 import { useReducedMotion } from './motion';
 import { C, F, R } from './theme';
@@ -20,6 +20,7 @@ const BAR_GAP = 12;
 export const BAR_SPACE = BAR_H + BAR_GAP; // aire extra al final de la pestaña para que la barra no tape nada
 // iOS: barra sobre el teclado numérico, que no trae tecla "Siguiente". Un nativeID por campo (ver KeyboardBar).
 const accessoryId = key => `analizar-teclado-${key}`;
+const INLINE_OFF = { opacity: 0 }; // ver KeyboardBar
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const SAND_RIPPLE = { color: 'rgba(211,190,145,0.24)' }; // el mismo de la barra de pestañas
 
@@ -233,6 +234,11 @@ function Section({ sec, open, onToggle, values, issues, children }) {
 // (RCTInputAccessoryComponentView.mm, didMoveToWindow). Con un nativeID compartido, los demás campos se quedaban
 // sin barra al llegar a ellos con "Siguiente". Por eso cada barra va justo después de su campo: se monta con él,
 // también en las secciones que se abren después, y no depende de qué campo está enfocado.
+// INLINE_OFF: el componente nativo también ocupa un rectángulo tinta (su backgroundColor) en la pantalla, que sólo
+// oculta con `hidden` en updateProps. Al reciclar la vista (p. ej. Cerrar sesión → Iniciar sesión: el Analizar nuevo
+// reusa las barras del anterior), updateLayoutMetrics vuelve a poner hidden = NO (UIView+ComponentViewProtocol.mm) y
+// los rectángulos se veían sobre "Ejemplos" y los campos. Con opacidad 0 no se ven ni reciben toques; la barra real
+// (su contenido, enganchado al campo) no hereda esa opacidad.
 function KeyboardBar({ a, s, flow, field }) {
   if (!ios) return null;
   const { r, bad } = a.live;
@@ -240,7 +246,7 @@ function KeyboardBar({ a, s, flow, field }) {
   const status = r ? `Calidad ${r.quality.toFixed(1)} de 10, gama ${r.tier.name}` : `Revisa ${count(bad.filter(Boolean).length, 'valor', 'valores')}`;
   const onPress = field === 'year' ? () => { Keyboard.dismiss(); s.onSave(); } : () => flow.goNext(field);
   return (
-    <InputAccessoryView nativeID={accessoryId(field)} backgroundColor={C.ink}>
+    <InputAccessoryView nativeID={accessoryId(field)} backgroundColor={C.ink} style={INLINE_OFF}>
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 6,
         borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)',
@@ -322,12 +328,9 @@ export function LiveScoreBar({ a, flow }) {
   const label = r
     ? `Calidad estimada ${r.quality.toFixed(1)} de 10, gama ${r.tier.name}${nWarn ? `, ${count(nWarn, 'valor', 'valores')} fuera de rango` : ''}. Toca para ver el resultado completo.`
     : `${count(nBad, 'valor', 'valores')} por revisar. Toca para ir al primero.`;
-  // iOS: la pantalla sigue por debajo de la barra de pestañas y el área segura de la pestaña la incluye.
-  // Android: la pantalla ya termina encima de la barra (y del teclado, por KeyboardAvoid).
-  const [Dock, dockProps] = ios ? [TabSafeArea, { edges: { bottom: true }, insetType: 'all' }] : [View, {}];
 
   return (
-    <Dock {...dockProps} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }}>
+    <TabDock>
       <Animated.View
         aria-hidden={hidden}
         style={{
@@ -377,6 +380,6 @@ export function LiveScoreBar({ a, flow }) {
           )}
         </Pressable>
       </Animated.View>
-    </Dock>
+    </TabDock>
   );
 }

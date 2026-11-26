@@ -1,5 +1,5 @@
-// Lógica del análisis, compartida por el dashboard web (Predictor.js) y la pestaña Analizar del celular
-import { useMemo, useState } from 'react';
+// Lógica del análisis, compartida por el dashboard web (Predictor.js) y las pestañas Analizar y Mejorar del celular
+import { createContext, useContext, useMemo, useState } from 'react';
 import model from './model.json';
 import { improve, percentile, predict } from './model-core';
 import { PRESETS } from './wine-data';
@@ -10,8 +10,12 @@ const badFields = (values, x) => x.map((v, i) => !Number.isFinite(v) || v < 0 ||
 export function useAnalysis() {
   const [values, setValues] = useState(() => PRESETS.Tinto.map(String));
   const [preset, setPreset] = useState('Tinto');
-  const [type, setType] = useState(undefined);
+  const [type, setTypeState] = useState(undefined);
   const [sim, setSim] = useState(() => new Set()); // recomendaciones activadas en el simulador
+  // Qué vino es (lo muestra Mejorar en el celular; la web no lo lee): el ejemplo o el vino guardado que se cargó,
+  // y si después se cambió algo
+  const [base, setBase] = useState({ kind: 'example', name: 'Tinto' });
+  const [edited, setEdited] = useState(false);
 
   // Todo se calcula en vivo mientras se escribe
   const live = useMemo(() => {
@@ -32,18 +36,39 @@ export function useAnalysis() {
     return { xs, r: predict(model, xs, r.isRed) };
   }, [recs, sim, r, x]);
 
-  const setField = (i, t) => { setPreset(null); setValues(vs => vs.map((v, j) => (j === i ? t : v))); };
-  const loadValues = (vals, name = null) => { setPreset(name); setValues(vals.map(v => String(+v))); setSim(new Set()); };
+  const setField = (i, t) => { setPreset(null); setEdited(true); setValues(vs => vs.map((v, j) => (j === i ? t : v))); };
+  const setType = t => { setTypeState(t); setEdited(true); };
+  // `name`: el ejemplo elegido · `wine`: la etiqueta del vino guardado que se abrió (sólo el celular la pasa)
+  const loadValues = (vals, name = null, wine = null) => {
+    setPreset(name); setValues(vals.map(v => String(+v))); setSim(new Set());
+    setBase(wine ? { kind: 'wine', name: wine } : name ? { kind: 'example', name } : null);
+    setEdited(false);
+  };
   const toggleSim = f => setSim(s => { const n = new Set(s); n.has(f) ? n.delete(f) : n.add(f); return n; });
   const clearSim = () => setSim(new Set());
-  // Sólo se redondean las metas aplicadas (3 cifras significativas: 11.5, 0.413); los valores del usuario quedan intactos
+  // Sólo se redondean las metas aplicadas (3 cifras significativas: 11.5, 0.413); los valores del usuario quedan intactos.
+  // Sigue siendo el mismo vino, ahora con cambios: se conserva `base` (lo de la web no cambia).
   const applySim = () => {
     const applied = new Set(recs.filter(k => sim.has(k.feature)).map(k => model.features.indexOf(k.feature)));
+    const keep = base;
     loadValues(simulated.xs.map((v, i) => (applied.has(i) ? +v.toPrecision(3) : v)));
+    setBase(keep);
+    setEdited(true);
   };
 
-  return { values, preset, type, setType, sim, live, simulated, setField, loadValues, toggleSim, clearSim, applySim };
+  return { values, preset, type, setType, sim, live, simulated, base, edited, setField, loadValues, toggleSim, clearSim, applySim };
 }
+
+// Celular: Analizar y Mejorar leen y cambian el MISMO análisis (una sola fuente de verdad), igual que Mis vinos con
+// WinesProvider. La web sigue llamando a useAnalysis() directo en Predictor.js.
+const Analysis = createContext(null);
+
+export function AnalysisProvider({ children }) {
+  const value = useAnalysis();
+  return <Analysis.Provider value={value}>{children}</Analysis.Provider>;
+}
+
+export const useSharedAnalysis = () => useContext(Analysis);
 
 // "Guardar en Mis vinos": nombre opcional y año de cosecha validado
 export function useSaveWine({ live, history, save }) {
