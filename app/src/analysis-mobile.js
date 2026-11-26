@@ -18,7 +18,8 @@ const BAR_H = 64;
 const BAR_COMPACT_H = 48; // Android con el teclado abierto: la barra queda justo encima del teclado
 const BAR_GAP = 12;
 export const BAR_SPACE = BAR_H + BAR_GAP; // aire extra al final de la pestaña para que la barra no tape nada
-const ACCESSORY = 'analizar-teclado'; // iOS: barra sobre el teclado numérico, que no trae tecla "Siguiente"
+// iOS: barra sobre el teclado numérico, que no trae tecla "Siguiente". Un nativeID por campo (ver KeyboardBar).
+const accessoryId = key => `analizar-teclado-${key}`;
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const SAND_RIPPLE = { color: 'rgba(211,190,145,0.24)' }; // el mismo de la barra de pestañas
 
@@ -165,8 +166,9 @@ export function useAnalysisFlow({ a, scroll }) {
   };
 }
 
-// Campo numérico del análisis: borde vino al escribir, malva suave si hay algo que revisar, y el motivo debajo
-function NumberField({ label, value, issue, focused, last, ref, ...props }) {
+// Campo numérico del análisis: borde vino al escribir, malva suave si hay algo que revisar, y el motivo debajo.
+// `bar`: su barra del teclado en iOS, que se monta justo después del campo (ver KeyboardBar).
+function NumberField({ label, value, issue, focused, last, accessoryID, bar, ref, ...props }) {
   return (
     <View style={{ flexBasis: '50%', paddingHorizontal: 8, marginBottom: 14 }}>
       <Text style={{ fontFamily: F.bodySb, fontSize: 13, color: C.muted, marginBottom: 6, letterSpacing: 0.3 }}>{label}</Text>
@@ -177,7 +179,7 @@ function NumberField({ label, value, issue, focused, last, ref, ...props }) {
         returnKeyType={last ? 'done' : 'next'}
         returnKeyLabel={last ? 'Listo' : 'Siguiente'}
         submitBehavior={last ? 'blurAndSubmit' : 'submit'}
-        inputAccessoryViewID={ios ? ACCESSORY : undefined}
+        inputAccessoryViewID={ios ? accessoryID : undefined}
         selectTextOnFocus
         accessibilityLabel={issue ? `${label}. ${issue.text}` : label}
         style={{
@@ -186,6 +188,7 @@ function NumberField({ label, value, issue, focused, last, ref, ...props }) {
         }}
         {...props}
       />
+      {bar}
       {issue ? <Text style={{ fontFamily: F.bodyMd, fontSize: 13, lineHeight: 18, color: C.wine, marginTop: 4 }}>{issue.text}</Text> : null}
     </View>
   );
@@ -223,16 +226,21 @@ function Section({ sec, open, onToggle, values, issues, children }) {
   );
 }
 
-// iOS: barra sobre el teclado con la calificación en vivo y "Siguiente" / "Listo"
-function KeyboardBar({ a, s, flow }) {
+// iOS: barra sobre el teclado con la calificación en vivo y "Siguiente" / "Listo", una por campo (`field`: índice del
+// campo numérico o 'year').
+// Por qué una por campo: en la nueva arquitectura (la de Expo Go), un InputAccessoryView se engancha a UN solo campo,
+// el primero que encuentra en la ventana con su nativeID, y sólo al montarse
+// (RCTInputAccessoryComponentView.mm, didMoveToWindow). Con un nativeID compartido, los demás campos se quedaban
+// sin barra al llegar a ellos con "Siguiente". Por eso cada barra va justo después de su campo: se monta con él,
+// también en las secciones que se abren después, y no depende de qué campo está enfocado.
+function KeyboardBar({ a, s, flow, field }) {
   if (!ios) return null;
   const { r, bad } = a.live;
-  const k = flow.focused;
-  const last = k === 'year' || k === LAST;
+  const last = field === 'year' || field === LAST;
   const status = r ? `Calidad ${r.quality.toFixed(1)} de 10, gama ${r.tier.name}` : `Revisa ${count(bad.filter(Boolean).length, 'valor', 'valores')}`;
-  const onPress = k === 'year' ? () => { Keyboard.dismiss(); s.onSave(); } : () => flow.goNext(k);
+  const onPress = field === 'year' ? () => { Keyboard.dismiss(); s.onSave(); } : () => flow.goNext(field);
   return (
-    <InputAccessoryView nativeID={ACCESSORY} backgroundColor={C.ink}>
+    <InputAccessoryView nativeID={accessoryId(field)} backgroundColor={C.ink}>
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 6,
         borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)',
@@ -287,15 +295,17 @@ export function MobileAnalysisForm({ a, s, pad, flow }) {
         <Section key={sec.title} sec={sec} open={flow.open[k]} onToggle={() => flow.toggle(k)} values={a.values} issues={flow.issues}>
           {sec.idx.map(i => (
             <NumberField key={i} label={LABELS[model.features[i]]} value={a.values[i]} issue={flow.issues[i]} focused={flow.focused === i}
-              last={i === LAST} onChangeText={t => a.setField(i, t)} onSubmitEditing={() => flow.goNext(i)} {...flow.fieldProps(i)} />
+              last={i === LAST} onChangeText={t => a.setField(i, t)} onSubmitEditing={() => flow.goNext(i)} {...flow.fieldProps(i)}
+              accessoryID={accessoryId(i)} bar={<KeyboardBar a={a} s={s} flow={flow} field={i} />} />
           ))}
         </Section>
       ))}
 
       <SaveWineSection s={s} wide={false}
         nameProps={{ ...flow.fieldProps('name'), returnKeyType: 'next', returnKeyLabel: 'Siguiente', submitBehavior: 'submit', onSubmitEditing: () => flow.focusKey('year') }}
-        yearProps={{ ...flow.fieldProps('year'), returnKeyType: 'done', returnKeyLabel: 'Listo', inputAccessoryViewID: ios ? ACCESSORY : undefined }} />
-      <KeyboardBar a={a} s={s} flow={flow} />
+        yearProps={{ ...flow.fieldProps('year'), returnKeyType: 'done', returnKeyLabel: 'Listo', inputAccessoryViewID: ios ? accessoryId('year') : undefined }} />
+      {/* Después del campo Año, que ya está montado: así su barra lo encuentra */}
+      <KeyboardBar a={a} s={s} flow={flow} field="year" />
     </Card>
   );
 }
