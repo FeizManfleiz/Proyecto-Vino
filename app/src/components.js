@@ -1,5 +1,5 @@
 import { memo, useId, useState } from 'react';
-import { Image, KeyboardAvoidingView, PixelRatio, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, PixelRatio, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop, SvgXml } from 'react-native-svg';
 import LOGO from './brand/logo-svg';
@@ -34,6 +34,7 @@ const ICONS = {
   bookmark: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
   x: 'M18 6L6 18M6 6l12 12',
   bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z',
+  share: 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13',
 };
 
 // Respuesta al toque en Android (la web usa los estados hover de cada control y no cambia)
@@ -83,8 +84,12 @@ const TONES = {
   ink: { bg: C.ink, fg: C.white, hover: '#3a2a33' },
   white: { bg: C.white, fg: C.ink, hover: C.cream },
 };
-export function Button({ label, onPress, kind = 'solid', tone = 'wine', icon, disabled, loading, small, style, a11y }) {
+// Celular: `spinner` muestra un indicador girando y `loadingLabel` mientras carga (p. ej. "Generando PDF…"), sin
+// atenuar el botón. La web no los pasa y sigue con "Procesando…".
+export function Button({ label, onPress, kind = 'solid', tone = 'wine', icon, disabled, loading, small, style, a11y, spinner, loadingLabel }) {
   const t = TONES[tone];
+  const fg = kind === 'solid' ? t.fg : t.bg;
+  const spinning = loading && spinner;
   return (
     <Pressable
       onPress={onPress}
@@ -96,16 +101,16 @@ export function Button({ label, onPress, kind = 'solid', tone = 'wine', icon, di
         {
           flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
           minHeight: small ? 40 : 48, paddingHorizontal: small ? 18 : 26, borderRadius: R.pill,
-          cursor: web ? 'pointer' : undefined, opacity: disabled || loading ? 0.55 : pressed ? 0.85 : 1,
+          cursor: web ? 'pointer' : undefined, opacity: disabled || (loading && !spinner) ? 0.55 : pressed ? 0.85 : 1,
         },
         kind === 'solid' && { backgroundColor: hovered ? t.hover : t.bg },
         kind === 'outline' && { borderWidth: 1.5, borderColor: t.bg, backgroundColor: hovered ? `${t.bg}1f` : 'transparent' },
         style,
       ]}
     >
-      {icon && <Icon name={icon} size={18} color={kind === 'solid' ? t.fg : t.bg} />}
-      <Text style={{ fontFamily: F.bodySb, fontSize: small ? 14 : 16, color: kind === 'solid' ? t.fg : t.bg }}>
-        {loading ? 'Procesando…' : label}
+      {spinning ? <ActivityIndicator size="small" color={fg} /> : icon && <Icon name={icon} size={18} color={fg} />}
+      <Text style={{ fontFamily: F.bodySb, fontSize: small ? 14 : 16, color: fg }}>
+        {loading ? (spinning && loadingLabel) || 'Procesando…' : label}
       </Text>
     </Pressable>
   );

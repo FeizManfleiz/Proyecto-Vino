@@ -1,18 +1,25 @@
 import { useCallback, useState } from 'react';
-import { Platform } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import LOGO from './brand/logo-svg';
 import { LOGO_COLORS } from './components';
 import { notify } from './dialogs';
+import { pdfFileName } from './mobile-logic';
+import { namedPdf, pdfFonts } from './pdf-files';
+
+const native = Platform.OS !== 'web';
 
 // Mismo logo que en la app (fondo oscuro en el encabezado). Como <img> data-URI: un <svg> en línea con <use> sólo se dibuja en la primera página impresa
 const logo = `<img alt="Los Tres García Vineyard" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(
   LOGO.replace(/\{\{(\w+)\}\}/g, (_, k) => LOGO_COLORS[k]))}">`;
 
+const GOOGLE_FONTS = '<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">';
+
 // Colores y tipografías del BrandBook. El encabezado con logo es position:fixed → se repite en cada página impresa.
-const wrap = (title, body) => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+// `fonts`: @font-face incrustados (celular, sin internet). Sin él, las fuentes vienen de Google Fonts (web).
+const wrap = (title, body, fonts) => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+${fonts == null ? GOOGLE_FONTS : `<style>${fonts}</style>`}
 <style>@page{margin:0}
 body{font-family:Montserrat,Helvetica,Arial,sans-serif;color:#20151d;line-height:1.55;margin:0}
 header{position:fixed;top:0;left:0;right:0;height:92px;display:flex;align-items:center;justify-content:space-between;
@@ -38,27 +45,45 @@ table.t th{background:#bec7a8;color:#20151d}tr{page-break-inside:avoid}
 <tbody><tr><td><main>${body}</main></td></tr></tbody></table>
 </body></html>`;
 
-// Android: genera el archivo y abre el menú para guardarlo/compartirlo. Web: diálogo de impresión → "Guardar como PDF".
-export async function savePdf(title, body) {
-  const html = wrap(title, body);
-  if (Platform.OS === 'web') {
-    const w = window.open('', '_blank');
-    if (!w) throw new Error('El navegador bloqueó la ventana emergente; permítela para descargar el PDF.');
-    w.document.write(html);
-    w.document.close();
-    w.onload = () => w.print();
+// Web: diálogo de impresión → "Guardar como PDF".
+// Celular: genera el PDF con las fuentes incrustadas, le pone un nombre legible (con la fecha si `dated`) y abre el menú
+// de compartir del sistema (WhatsApp, correo, Archivos…). `onReady` avisa en cuanto el archivo existe, antes del menú.
+export async function savePdf(title, body, { dated, onReady } = {}) {
+  if (native) {
+    const { uri } = await Print.printToFileAsync({ html: wrap(title, body, await pdfFonts()) });
+    const file = await namedPdf(uri, pdfFileName(title, dated ? new Date() : null));
+    onReady?.();
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(file, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: title });
+    }
     return;
   }
-  const { uri } = await Print.printToFileAsync({ html });
-  if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: title });
+  const w = window.open('', '_blank');
+  if (!w) throw new Error('El navegador bloqueó la ventana emergente; permítela para descargar el PDF.');
+  w.document.write(wrap(title, body));
+  w.document.close();
+  w.onload = () => w.print();
 }
 
-// [título que se está generando, descargar(título, cuerpo)]; los errores se avisan con un diálogo
+// [título que se está generando, descargar(título, cuerpo, { dated })]; los errores se avisan con un diálogo.
+// Celular: `busy` se limpia en cuanto el PDF está listo, para que el indicador no quede encima del menú de compartir,
+// y los lectores de pantalla oyen "Generando PDF" y "PDF listo para compartir".
 export function usePdf() {
   const [busy, setBusy] = useState('');
-  const download = useCallback(async (title, body) => {
+  const download = useCallback(async (title, body, opts) => {
     setBusy(title);
-    try { await savePdf(title, body); } catch (e) { notify(e.message); } finally { setBusy(''); }
+    if (native) AccessibilityInfo.announceForAccessibility('Generando PDF');
+    const onReady = () => {
+      setBusy('');
+      AccessibilityInfo.announceForAccessibility('PDF listo para compartir');
+    };
+    try {
+      await savePdf(title, body, { ...opts, onReady });
+    } catch (e) {
+      notify(native ? 'No se pudo generar el PDF. Intenta de nuevo.' : e.message);
+    } finally {
+      setBusy('');
+    }
   }, []);
   return [busy, download];
 }

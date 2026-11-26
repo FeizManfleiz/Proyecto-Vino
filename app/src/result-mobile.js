@@ -107,8 +107,9 @@ export function ResultDetail({ a, pdfBusy, onPdf }) {
       <Kicker color={C.olive} style={{ marginTop: 20, marginBottom: 4 }}>MARIDAJE</Kicker>
       <P size={16}>{r.flavor.pairing}</P>
 
-      <Button icon="download" label="Descargar reporte PDF" style={{ marginTop: 20 }}
-        loading={pdfBusy === REPORT} onPress={() => onPdf(REPORT, reportBody(model, LABELS, a.values, r, recs))} />
+      <Button icon="share" label="Compartir reporte PDF" style={{ marginTop: 20 }} spinner loadingLabel="Generando PDF…"
+        loading={pdfBusy === REPORT} disabled={!!pdfBusy && pdfBusy !== REPORT}
+        onPress={() => onPdf(REPORT, reportBody(model, LABELS, a.values, r, recs), { dated: true })} />
     </Card>
   );
 }
@@ -182,8 +183,9 @@ export function ImproveCard({ a, pdfBusy, onPdf, onOpenSim }) {
         </>
       )}
 
-      <Button kind="outline" tone="wine" icon="download" label="Guía completa para el productor (PDF)" style={{ marginTop: 8 }}
-        loading={pdfBusy === GUIDES[0].title} onPress={() => onPdf(GUIDES[0].title, GUIDES[0].body)} />
+      <Button kind="outline" tone="wine" icon="share" label="Guía completa para el productor (PDF)" style={{ marginTop: 8 }}
+        spinner loadingLabel="Generando PDF…" loading={pdfBusy === GUIDES[0].title} disabled={!!pdfBusy && pdfBusy !== GUIDES[0].title}
+        onPress={() => onPdf(GUIDES[0].title, GUIDES[0].body)} />
     </Faded>
   );
 }

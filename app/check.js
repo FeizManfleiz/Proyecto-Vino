@@ -74,4 +74,11 @@ assert.deepStrictEqual(sortWines(ws, 'quality').map(w => w.id), ['b', 'c', 'a'],
 assert.deepStrictEqual(ws.map(w => w.id), ['a', 'b', 'c'], 'sortWines no cambia la lista original');
 assert.deepStrictEqual(sortWines([], 'quality'), []);
 
+// Nombre del PDF al compartir: sin caracteres prohibidos, con acentos, y la fecha sólo si se pide
+const { pdfFileName } = require('./src/mobile-logic.js');
+assert.strictEqual(pdfFileName('Guía: cómo mejorar tu vino'), 'Guía cómo mejorar tu vino.pdf');
+assert.strictEqual(pdfFileName('Reporte de predicción', new Date(2026, 10, 5)), 'Reporte de predicción 2026-11-05.pdf');
+assert.strictEqual(pdfFileName('a/b\\c*d?"e"<f>|g'), 'a b c d e f g.pdf');
+assert.strictEqual(pdfFileName(' : '), 'Documento.pdf');
+
 console.log('OK', red.quality.toFixed(2), white.quality.toFixed(2), 'RC', rc.quality.toFixed(2), rc.tier.name, '· rangos', rows.length, 'vinos');
